@@ -1,0 +1,120 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+      "title": "Service Desk API",
+      "version": "1.0.0",
+      "description": "API documentation for the Service Desk application."
+    },
+    "servers": [
+      {
+        "url": "http://localhost:5000",
+        "description": "Local server"
+      }
+    ],
+    "paths": {
+      "/health": {
+        "get": {
+          "summary": "Health Check",
+          "responses": {
+            "200": {
+              "description": "Service is up and running",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "example": "UP"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/users": {
+        "post": {
+          "summary": "Create a new user",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "User created successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "User created"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid input",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "errors": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "msg": { "type": "string" },
+                            "param": { "type": "string" },
+                            "location": { "type": "string" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "schemas": {
+        "User": {
+          "type": "object",
+          "required": ["username", "email", "password"],
+          "properties": {
+            "username": {
+              "type": "string",
+              "example": "john_doe"
+            },
+            "email": {
+              "type": "string",
+              "format": "email",
+              "example": "john.doe@example.com"
+            },
+            "password": {
+              "type": "string",
+              "format": "password",
+              "example": "strongPassword123"
+            }
+          }
+        }
+      }
+    }
+  }
+  
