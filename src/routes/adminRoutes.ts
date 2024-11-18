@@ -13,11 +13,13 @@ import {
   exportUserDataHandler,
   suspendUserHandler,
   reactivateUserHandler,
-  editUserProfileHandler,
+  updateUserProfileHandler,
+  adminDeleteUserHandler,
 } from '../controllers/adminController';
 import { authenticateJWT } from '../middlewares/authMiddleware';
 import { authorizeRoles } from '../middlewares/authorizeRoles';
-import { UserRole } from '../models/User';
+import { register, verifyEmailHandler } from '../controllers/authController';
+import { UserRole } from '../types/enums';
 import multer from 'multer';
 
 // Configure Multer for CSV uploads
@@ -35,7 +37,7 @@ router.put('/deletion-requests/:id/approve', approveDeletionHandler);
 router.put('/deletion-requests/:id/reject', rejectDeletionHandler);
 
 // User Management
-router.post('/users', createUserAndSendInviteHandler);
+router.post('/users/invite', createUserAndSendInviteHandler);
 router.post('/users/bulk-create', upload.single('file'), bulkCreateUsersFromCSVHandler);
 router.get('/users', getAllUsersHandler);
 router.put('/users/:id/role', changeUserRoleHandler);
@@ -53,6 +55,23 @@ router.put('/users/:id/suspend', suspendUserHandler);
 router.put('/users/:id/reactivate', reactivateUserHandler);
 
 // Edit User Profile
-router.put('/users/:id/profile', editUserProfileHandler);
+router.put('/users/:id/profile', updateUserProfileHandler);
+
+
+
+// Delete User
+
+// DELETE /api/admin/users/:id
+router.delete(
+  '/users/:id',
+  authenticateJWT,
+  authorizeRoles(UserRole.Admin),
+  adminDeleteUserHandler
+);
+
+// Register and Verify Email
+
+router.post('/', register);
+router.post('/verify-email', verifyEmailHandler);
 
 export default router;

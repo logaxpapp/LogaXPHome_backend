@@ -5,9 +5,13 @@ import {
   editProfile,
   changePassword,
   deleteAccountRequest,
+  
+  approveDeletionHandler,
+  rejectDeletionHandler
 } from '../controllers/profileController';
 import { body } from 'express-validator';
 import { authenticateJWT } from '../middlewares/authMiddleware';
+import { validateRequest } from '../middlewares/validateRequest';
 
 const router = Router();
 
@@ -19,13 +23,7 @@ router.get('/', viewProfile);
 
 // PUT /api/profile
 router.put(
-  '/',
-  [
-    body('name').optional().notEmpty().withMessage('Name cannot be empty'),
-    body('email').optional().isEmail().withMessage('Valid email is required'),
-    body('job_title').optional().notEmpty().withMessage('Job title cannot be empty'),
-    body('applications_managed').optional().isArray().withMessage('Applications managed must be an array'),
-  ],
+  '/:id',
   editProfile
 );
 
@@ -36,10 +34,13 @@ router.put(
     body('current_password').notEmpty().withMessage('Current password is required'),
     body('new_password').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
   ],
+  validateRequest, // Add validation middleware
   changePassword
 );
 
 // DELETE /api/profile
 router.delete('/', deleteAccountRequest);
+// Account Deletion Requests
+
 
 export default router;

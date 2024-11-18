@@ -1,15 +1,28 @@
 // src/services/adminService.ts
 
-import User, { IUser, UserStatus, UserRole } from '../models/User';
+import User, { IUser } from '../models/User';
+import { UserRole, UserStatus, Application } from '../types/enums';
+import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import {
   sendAccountDeletionNotification,
   sendInvitationEmail,
   sendPasswordResetEmail,
+  notifyAdminsOfDeletionRequest,
 } from '../utils/email';
 import csv from 'csv-parser';
 import fs from 'fs';
 import { Parser } from 'json2csv';
+
+interface CreateUserInput {
+  name: string;
+  email: string;
+  role?: UserRole;
+  password?: string;
+  applications_managed?: Application[]; // Include applications_managed here
+  // Add other fields as necessary
+}
 
 // Generate a unique Employee ID
 const generateEmployeeId = async (): Promise<string> => {
@@ -41,6 +54,8 @@ export const approveDeletionRequest = async (userId: string): Promise<void> => {
   await sendAccountDeletionNotification(user.email, 'approved');
 };
 
+
+
 // Reject deletion: set status back to 'Active' and notify
 export const rejectDeletionRequest = async (userId: string): Promise<void> => {
   const user = await User.findById(userId);
@@ -53,25 +68,22 @@ export const rejectDeletionRequest = async (userId: string): Promise<void> => {
   await sendAccountDeletionNotification(user.email, 'rejected');
 };
 
-// Admin: Create user and send invite
+
+
+// Admin: Create User and Send Invite
 export const createUserAndSendInvite = async (
-  input: { name: string; email: string; role?: UserRole },
+  input: CreateUserInput,
   createdBy: IUser
 ): Promise<IUser> => {
-  // Validate role
+  // Validate role and other fields as needed
+
   const userRole: UserRole = input.role || UserRole.User;
-  if (!Object.values(UserRole).includes(userRole)) {
-    throw { status: 400, message: 'Invalid user role' };
-  }
 
-  // Check if user already exists
-  const existingUser = await User.findOne({ email: input.email });
-  if (existingUser) {
-    throw { status: 400, message: 'User with this email already exists' };
-  }
-
+  // Generate employee ID and password hash
   const employeeId = await generateEmployeeId();
+  const passwordHash = await bcrypt.hash(input.password || 'DefaultPassword123', 10);
 
+  // Create new user
   const user = new User({
     name: input.name,
     email: input.email,
@@ -79,10 +91,14 @@ export const createUserAndSendInvite = async (
     status: UserStatus.Pending,
     createdBy: createdBy._id,
     employee_id: employeeId,
+    password_hash: passwordHash,
+    applications_managed: input.applications_managed, // Include applications_managed
+    // Include other fields as necessary
   });
 
   await user.save();
 
+  // Send invitation email
   const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET!, { expiresIn: '1d' });
   await sendInvitationEmail(user.email, token);
 
@@ -311,4 +327,58 @@ export const editUserProfile = async (userId: string, updates: Partial<IUser>): 
   await user.save();
 
   return user;
+};
+
+
+// Update User Profile Service Function
+export const updateUserProfile = async (userId: string, updates: Partial<IUser>): Promise<IUser> => {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw { status: 404, message: 'User not found' };
+  }
+
+  // Define immutable fields that cannot be updated
+  const immutableFields = ['email', 'employee_id', 'role'];
+  for (const field of immutableFields) {
+    if (updates[field as keyof IUser]) {
+      throw { status: 400, message: `Cannot change the field: ${field}` };
+    }
+  }
+
+  // Assign valid updates to user
+  Object.assign(user, updates);
+  await user.save();  // Save the updated user
+
+  return user;
+};
+ 
+
+
+export const adminDeleteUser = async (userId: string): Promise<void> => {
+  console.log(`Attempting to delete user with ID: ${userId}`);
+
+  // Validate userId format
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    console.log(`Invalid user ID format: ${userId}`);
+    throw { status: 400, message: 'Invalid user ID format.' };
+  }
+
+  const user = await User.findById(userId);
+  console.log(`User found: ${user ? user.name : 'No user found'}`);
+
+  if (!user) {
+    throw { status: 404, message: 'User not found.' };
+  }
+
+  await User.findByIdAndDelete(userId);
+  console.log(`User with ID ${userId} has been deleted.`);
+
+  // Notify the user about the account deletion
+  await notifyUserAccountDeleted(user);
+};
+
+const notifyUserAccountDeleted = async (user: any) => {
+  // Implement notification logic here
+  console.log(`Notification sent to user: ${user.email}`);
 };

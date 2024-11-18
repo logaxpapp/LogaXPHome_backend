@@ -1,23 +1,9 @@
-// src/models/User.ts
 import mongoose, { Document, Schema, Model } from 'mongoose';
 import bcrypt from 'bcrypt';
+import { UserRole, UserStatus, Application } from '../types/enums';
+import Session from './Session';
 
-// Enums for Role and Status
-export enum UserRole {
-  Admin = 'admin',
-  Support = 'support',
-  User = 'user',
-}
-
-export enum UserStatus {
-  Pending = 'Pending',
-  Active = 'Active',
-  Suspended = 'Suspended',
-  PendingDeletion = 'Pending Deletion',
-  Inactive = 'Inactive',
-}
-
-// Address Subdocument Interface with optional fields
+// Address Subdocument Interface
 export interface IAddress {
   street?: string;
   city?: string;
@@ -26,27 +12,53 @@ export interface IAddress {
   country?: string;
 }
 
+// Password history interface
+interface IPasswordHistory {
+  hash: string;
+  changedAt: Date;
+}
+
 // User Interface extending Document
 export interface IUser extends Document {
+  _id: mongoose.Types.ObjectId;
   name: string;
   email: string;
   password_hash: string;
+  passwordHistory: IPasswordHistory[];
+  comparePassword(candidatePassword: string): Promise<boolean>;
+  isPasswordReused(newPassword: string): Promise<boolean>;
   role: UserRole;
   status: UserStatus;
-  applications_managed?: string[]; // Optional
-  job_title?: string; // Optional
-  employee_id?: string; // Optional
-  department?: string; // Optional
-  manager?: mongoose.Types.ObjectId | IUser; // Optional
-  phone_number?: string; // Optional
-  address?: IAddress; // Optional
-  profile_picture_url?: string; // Optional
-  date_of_birth?: Date; // Optional
-  employment_type?: string; // Optional
-  onboarding_steps_completed?: string[]; // Optional
-  createdBy?: mongoose.Types.ObjectId | IUser; // Optional
-  updatedBy?: mongoose.Types.ObjectId | IUser; // Optional
-  comparePassword(candidatePassword: string): Promise<boolean>;
+  applications_managed?: Application[];
+  job_title?: string;
+  employee_id?: string;
+  department?: string;
+  manager?: mongoose.Types.ObjectId | IUser;
+  phone_number?: string;
+  address?: IAddress;
+  profile_picture_url?: string;
+  date_of_birth?: Date;
+  employment_type?: string;
+  onboarding_steps_completed?: string[];
+  createdBy?: mongoose.Types.ObjectId | IUser;
+  createdAt: Date; // Add this
+  updatedAt: Date; // Add this
+  updatedBy?: mongoose.Types.ObjectId | IUser;
+  token?: string;
+  googleConnected?: boolean;
+  expiresIn?: string;
+  deletionReason?: string;
+  deletionApprovedBy?: mongoose.Types.ObjectId | IUser;
+  deletionRejectedBy?: mongoose.Types.ObjectId | IUser;
+  googleAccessToken?: string;
+  googleRefreshToken?: string;
+  googleTokenExpiry?: Date;
+  lastLoginAt?: Date;
+  passwordChangedAt?: Date;
+  passwordExpiryNotified?: boolean;
+  acknowledgedPolicies?: mongoose.Types.ObjectId[]; 
+  recordLogin(): Promise<void>;
+  recordLogout(): Promise<void>;
 }
 
 // Address Subdocument Schema
@@ -58,53 +70,124 @@ const AddressSchema: Schema<IAddress> = new Schema(
     zip: { type: String, trim: true },
     country: { type: String, trim: true },
   },
-  { _id: false } // No separate _id for subdocuments
+  { _id: false }
 );
 
 // User Schema
 const UserSchema: Schema<IUser> = new Schema(
   {
-    name: { type: String, required: true, trim: true }, // Required at creation
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true }, // Required at creation
-    password_hash: { type: String, required: true }, // Password is hashed
-    role: { type: String, enum: Object.values(UserRole), required: true, default: UserRole.User }, // Required with default
-    status: { type: String, enum: Object.values(UserStatus), default: UserStatus.Pending }, // Set as Pending until verification
-    applications_managed: [{ type: String, trim: true }], // Optional
-    job_title: { type: String, trim: true }, // Optional
-    employee_id: { type: String, unique: true, trim: true }, // Optional - unique ID, can be filled later
-    department: { type: String, trim: true }, // Optional
-    manager: { type: Schema.Types.ObjectId, ref: 'User' }, // Optional
-    phone_number: { type: String, trim: true }, // Optional
-    address: { type: AddressSchema }, // Optional
-    profile_picture_url: { type: String, trim: true }, // Optional
-    date_of_birth: { type: Date }, // Optional
-    employment_type: { type: String, trim: true }, // Optional
-    onboarding_steps_completed: [{ type: String, trim: true }], // Optional
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User' }, // Optional
-    updatedBy: { type: Schema.Types.ObjectId, ref: 'User' }, // Optional
+    _id: { type: Schema.Types.ObjectId, auto: true },
+    name: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    password_hash: { type: String, required: true },
+    passwordHistory: [
+      {
+        hash: { type: String, required: true },
+        changedAt: { type: Date, required: true },
+      },
+    ],
+    role: { type: String, enum: Object.values(UserRole), required: true, default: UserRole.User },
+    status: { type: String, enum: Object.values(UserStatus), default: UserStatus.Pending },
+    applications_managed: [{ type: String, enum: Object.values(Application), trim: true }],
+    deletionReason: { type: String, trim: true },
+    deletionApprovedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    deletionRejectedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    job_title: { type: String, trim: true },
+    employee_id: { type: String, unique: true, trim: true },
+    department: { type: String, trim: true },
+    manager: { type: Schema.Types.ObjectId, ref: 'User' },
+    phone_number: { type: String, trim: true },
+    address: { type: AddressSchema },
+    profile_picture_url: { type: String, trim: true },
+    date_of_birth: { type: Date },
+    employment_type: { type: String, trim: true },
+    onboarding_steps_completed: [{ type: String, trim: true }],
+    googleConnected: { type: Boolean, default: false },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    googleAccessToken: { type: String },
+    googleRefreshToken: { type: String },
+    googleTokenExpiry: { type: Date },
+    lastLoginAt: { type: Date },
+    passwordChangedAt: { type: Date },
+    passwordExpiryNotified: { type: Boolean, default: false },
+    acknowledgedPolicies: [{ type: Schema.Types.ObjectId, ref: 'Resource' }],
   },
   { timestamps: true }
 );
 
-// Indexes for faster queries
-UserSchema.index({ email: 1 });
-UserSchema.index({ employee_id: 1 });
+// Method to check if the password is reused
+UserSchema.methods.isPasswordReused = async function (newPassword: string): Promise<boolean> {
+  for (const entry of this.passwordHistory) {
+    const isMatch = await bcrypt.compare(newPassword, entry.hash);
+    if (isMatch) return true;
+  }
+  return false;
+};
 
-// Password Hashing Middleware
+// Password hashing middleware
 UserSchema.pre<IUser>('save', async function (next) {
+  // If the password field isn't modified, skip the middleware
   if (!this.isModified('password_hash')) return next();
+
   try {
+    // If not a new document, save the current hashed password to history
+    if (!this.isNew) {
+      // Fetch the current hashed password from the database
+      const user = await User.findById(this._id).select('password_hash');
+      if (user && user.password_hash) {
+        this.passwordHistory.push({
+          hash: user.password_hash, // Save the current hashed password
+          changedAt: new Date(),
+        });
+
+        // Keep only the last 5 passwords
+        if (this.passwordHistory.length > 5) {
+          this.passwordHistory.shift();
+        }
+      }
+    }
+
+    // Hash the new password
     const salt = await bcrypt.genSalt(10);
     this.password_hash = await bcrypt.hash(this.password_hash, salt);
+
+    // Update the passwordChangedAt field
+    this.passwordChangedAt = new Date();
+
+    // Reset the passwordExpiryNotified flag
+    this.passwordExpiryNotified = false;
+
     next();
   } catch (error) {
-    next(error as any);
+    next(error as mongoose.CallbackError);
   }
 });
 
 // Method to Compare Passwords
 UserSchema.methods.comparePassword = function (candidatePassword: string): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password_hash);
+};
+
+// Method to Record Login
+UserSchema.methods.recordLogin = async function () {
+  this.lastLoginAt = new Date();
+  await this.save();
+
+  // Update or create an active session
+  await Session.findOneAndUpdate(
+    { userId: this._id },
+    { userId: this._id, isActive: true, lastAccessed: new Date() },
+    { upsert: true }
+  );
+};
+
+// Method to Record Logout
+UserSchema.methods.recordLogout = async function () {
+  await Session.findOneAndUpdate(
+    { userId: this._id, isActive: true },
+    { isActive: false }
+  );
 };
 
 // Export the User Model

@@ -1,30 +1,32 @@
 // src/routes/authRoutes.ts
+
 import { Router } from 'express';
-import { register, verifyEmailHandler, login } from '../controllers/authController';
+import { authenticateJWT } from '../middlewares/authMiddleware';
+import { 
+  register, 
+  verifyEmailHandler, 
+  login, 
+  getSetupAccount, 
+  setupAccount, 
+  getAllLoggedInUsers,
+  logout,
+  changePasswordHandler,
+} from '../controllers/authController';
 
 const router = Router();
 
-// POST /api/auth/register
+// Public routes
 router.post('/register', register);
-
-// GET /api/auth/register (Informational)
-router.get('/register', (req, res) => {
-  res.status(200).json({
-    message: 'Register a new user by sending a POST request to this endpoint with the required fields.',
-    requiredFields: {
-      name: 'string',
-      email: 'string',
-      password: 'string',
-      job_title: 'string',
-      applications_managed: 'array of strings',
-    },
-  });
-});
-
-// GET /api/auth/verify-email
 router.get('/verify-email', verifyEmailHandler);
-
-// POST /api/auth/login
 router.post('/login', login);
+router.get('/logout', authenticateJWT, logout);
+router.get('/setup-account', getSetupAccount);
+router.post('/setup-account', setupAccount);
+
+
+// Protected route - only accessible by authenticated users
+router.get('/all-logged-in-users', authenticateJWT, getAllLoggedInUsers);
+router.put('/change-password', authenticateJWT, changePasswordHandler);
+
 
 export default router;

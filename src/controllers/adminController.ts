@@ -1,6 +1,6 @@
 // src/controllers/adminController.ts
 
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import {
   getAllDeletionRequests,
   approveDeletionRequest,
@@ -14,8 +14,12 @@ import {
   suspendUser,
   reactivateUser,
   editUserProfile,
+  adminDeleteUser,
+  updateUserProfile,
+  
 } from '../services/adminService';
-import { UserRole, UserStatus } from '../models/User';
+import { requestAccountDeletion,   getEmployees,  } from '../services/userService';
+import { UserRole, UserStatus, Application } from '../types/enums';
 import multer from 'multer';
 
 // Configure Multer for CSV uploads
@@ -64,18 +68,35 @@ export const rejectDeletionHandler = async (req: Request, res: Response): Promis
 };
 
 // Create User and Send Invite
-export const createUserAndSendInviteHandler = async (req: Request, res: Response): Promise<void> => {
+export const createUserAndSendInviteHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    const { name, email, role } = req.body;
-    if (!name || !email) {
-      res.status(400).json({ message: 'Name and email are required' });
-      return;
+    const { name, email, role, applications_managed } = req.body;
+
+    // Validate applications_managed
+    if (applications_managed) {
+      const validApplications = Object.values(Application) as string[];
+      for (const app of applications_managed) {
+        if (!validApplications.includes(app)) {
+          res.status(400).json({ message: `Invalid application: ${app}` });
+          return;
+        }
+      }
     }
 
-    const user = await createUserAndSendInvite({ name, email, role }, req.user!);
-    res.status(201).json({ message: 'User created and invitation sent', user });
+    const user = await createUserAndSendInvite(
+      { name, email, role, applications_managed },
+      req.user!
+    );
+    res
+      .status(201)
+      .json({ message: 'User created and invitation sent', user });
   } catch (error: any) {
-    res.status(error.status || 500).json({ message: error.message || 'Server error' });
+    res
+      .status(error.status || 500)
+      .json({ message: error.message || 'Server error' });
   }
 };
 
@@ -202,7 +223,7 @@ export const reactivateUserHandler = async (req: Request, res: Response): Promis
   }
 };
 
-// Edit User Profile
+// ADin Edit User Profile
 export const editUserProfileHandler = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -217,5 +238,63 @@ export const editUserProfileHandler = async (req: Request, res: Response): Promi
     res.status(200).json({ message: 'User profile updated successfully', user });
   } catch (error: any) {
     res.status(error.status || 500).json({ message: error.message || 'Server error' });
+  }
+};
+
+
+// Remove immutable fields in the controller before calling the service
+export const updateUserProfileHandler = async (req: Request, res: Response): Promise<void> => {
+  const { id } = req.params;
+  const updates = req.body;
+
+  // Remove immutable fields
+  delete updates.email;
+  delete updates.employee_id;
+  delete updates.role;
+
+  try {
+    const user = await updateUserProfile(id, updates);
+    res.status(200).json({ message: 'User profile updated successfully', user });
+  } catch (error: any) {
+    res.status(error.status || 500).json({ message: error.message || 'Server error' });
+  }
+};
+
+
+export const requestAccountDeletionHandler = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.params.userId;
+
+  try {
+    const user = await requestAccountDeletion(req.user!._id); // Changed from userId to _id
+    res.status(200).json({ message: 'Account deletion requested successfully.', user });
+  } catch (error: any) {
+    res.status(error.status || 500).json({ message: error.message || 'Server error.' });
+  }
+};
+
+export const adminDeleteUserHandler = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.params.id; // Changed from userId to id
+
+  console.log(`Received request to delete user with ID: ${userId}`);
+
+  try {
+    await adminDeleteUser(userId);
+    res.status(200).json({ message: 'User deleted successfully by admin.' });
+  } catch (error: any) {
+    console.error(`Error deleting user with ID ${userId}:`, error);
+    res.status(error.status || 500).json({ message: error.message || 'Server error.' });
+  }
+};
+
+
+export const fetchEmployees = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    console.log('Fetching employees...');
+    const employees = await getEmployees();
+    console.log('Employees fetched:', employees);
+    res.status(200).json(employees);
+  } catch (error: any) {
+    console.error('Error fetching employees:', error.message);
+    next(error); // Pass error to centralized error handler
   }
 };

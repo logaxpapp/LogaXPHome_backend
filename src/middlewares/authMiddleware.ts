@@ -1,29 +1,59 @@
 // src/middlewares/authMiddleware.ts
+
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
 import User, { IUser } from '../models/User';
 
-export const authenticateJWT: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
+declare global {
+  namespace Express {
+    interface Request {
+      user?: IUser;
+    }
+  }
+}
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ message: 'Authorization header missing or malformed' });
-    return; // Prevent further execution
+export const authenticateJWT: RequestHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const token = req.cookies.token;
+
+  if (!token) {
+    console.log('Authentication token missing.');
+    res.status(401).json({ message: 'Authentication token missing' });
+    return; // Ensure function returns void
   }
 
-  const token = authHeader.split(' ')[1];
-
   try {
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-    const user = await User.findById(decoded.user.id);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+
+    console.log('Decoded JWT:', decoded);
+
+    const userId = decoded.userId;
+
+    if (!userId) {
+      console.log('Invalid token payload: userId missing.');
+      res.status(401).json({ message: 'Invalid token payload' });
+      return; // Ensure function returns void
+    }
+
+    const user = await User.findById(userId).select('-password_hash');
+
     if (!user) {
+      console.log(`User not found with ID: ${userId}`);
       res.status(401).json({ message: 'User not found' });
-      return;
+      return; // Ensure function returns void
     }
 
     req.user = user;
+
+    console.log(`Authenticated User: ${user.name}, Role: ${user.role}`);
+
     next();
   } catch (error) {
+    console.log('JWT Verification Failed:', error instanceof Error ? error.message : error);
     res.status(401).json({ message: 'Invalid or expired token' });
+    return; // Ensure function returns void
   }
 };
