@@ -265,7 +265,7 @@ export const requestAccountDeletionHandler = async (req: Request, res: Response)
   const userId = req.params.userId;
 
   try {
-    const user = await requestAccountDeletion(req.user!._id); // Changed from userId to _id
+    const user = await requestAccountDeletion(req.user!._id, "i don't want it anymore"); // Changed from userId to _id
     res.status(200).json({ message: 'Account deletion requested successfully.', user });
   } catch (error: any) {
     res.status(error.status || 500).json({ message: error.message || 'Server error.' });
