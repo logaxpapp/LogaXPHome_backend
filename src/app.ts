@@ -30,7 +30,7 @@ app.use(
   cors({
     origin: process.env.CORS_ORIGIN
       ? process.env.CORS_ORIGIN.split(',') // Allow multiple origins from env (comma-separated)
-      : ['https://logaxp-home.onrender.com', 'http://localhost:3000'], // Fallback to these origins
+      : ['https://logaxp-home.onrender.com', 'http://localhost:5173'], // Fallback to these origins
     credentials: true, // Allow cookies to be sent
   })
 );
