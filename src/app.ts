@@ -1,5 +1,3 @@
-// src/app.ts
-
 import express, { Application, Request, Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -23,11 +21,16 @@ dotenv.config();
 
 const app: Application = express();
 
+// Trust Proxy for Reverse Proxy Environments (e.g., Render)
+app.set('trust proxy', 1); // Required for X-Forwarded-For and CSRF protection
+
 // Security Middleware
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(',') // Allow multiple origins from env (comma-separated)
+      : ['https://logaxp-home.onrender.com', 'http://localhost:3000'], // Fallback to these origins
     credentials: true, // Allow cookies to be sent
   })
 );
@@ -54,8 +57,8 @@ app.use(morgan('combined'));
 const csrfProtection = csurf({
   cookie: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production', // Use secure cookies only in production
+    sameSite: 'strict', // Prevent CSRF attacks by ensuring same-site requests
   },
 });
 
@@ -79,14 +82,13 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'UP' });
 });
 
+// Seed Initial Settings (Uncomment if needed)
 // seedSettings().catch((error) => {
 //   console.error('Error seeding settings:', error);
 // });
 
-
-// Start the scheduler
+// Start Schedulers
 scheduleDailyTasks();
-
 schedulePayPeriodCreation();
 
 // Error Handling Middleware

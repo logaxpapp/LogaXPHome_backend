@@ -184,7 +184,7 @@ export const getAllUsers = async (input: {
   page?: number;
   limit?: number;
 }): Promise<{ users: IUser[]; total: number }> => {
-  const { role, status, department, search, page = 1, limit = 10 } = input;
+  const { role, status, department, search, page = 1, limit } = input; // Removed default `limit = 10`
   const query: any = {};
 
   if (role) query.role = role;
@@ -198,14 +198,15 @@ export const getAllUsers = async (input: {
   }
 
   const users = await User.find(query)
-    .skip((page - 1) * limit)
-    .limit(limit)
+    .skip((page - 1) * (limit || 0)) // Skip only if limit is provided
+    .limit(limit || 0) // If no limit, return all users
     .exec();
 
   const total = await User.countDocuments(query).exec();
 
   return { users, total };
 };
+
 
 // Admin: Change User Role
 export const changeUserRole = async (userId: string, newRole: UserRole): Promise<IUser> => {
