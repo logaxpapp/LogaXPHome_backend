@@ -52,7 +52,6 @@ app.use(cookieParser()); // Parse cookies
 
 // HTTP Request Logging
 app.use(morgan('combined'));
-
 // CSRF Protection
 const csrfProtection = csurf({
   cookie: {
@@ -74,8 +73,12 @@ app.use('/api', routes); // Centralized route mounting
 
 // CSRF Token Endpoint
 app.get('/api/csrf-token', (req: Request, res: Response) => {
+  // Log the CSRF token to debug in production
+  console.log(`[${new Date().toISOString()}] CSRF Token Generated:`, req.csrfToken());
+  
   res.json({ csrfToken: req.csrfToken() });
 });
+
 
 // Health Check Endpoint
 app.get('/health', (req: Request, res: Response) => {
