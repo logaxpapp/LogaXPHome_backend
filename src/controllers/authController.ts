@@ -35,6 +35,8 @@ export const verifyEmailHandler = async (req: Request, res: Response) => {
 // src/controllers/authController.ts
 export const login = async (req: Request, res: Response) => {
   try {
+    console.log('Incoming Headers:', req.headers); // Log all headers
+    console.log('CSRF Token from Header:', req.headers['x-csrf-token']);
     const { email, password } = req.body;
 
     // Authenticate user and generate token

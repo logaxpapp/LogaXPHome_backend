@@ -73,7 +73,6 @@ export const clockInController = async (req: Request, res: Response) => {
       return;
     }
 
-    console.log('Active shift for clock-in:', activeShift);
 
     // **3. Check for existing "clockedOut" or "onBreak" entries to resume**
     const existingEntry = await TimeEntry.findOne({
@@ -302,6 +301,8 @@ export const updateTimeEntryAdminController = async (req: Request, res: Response
   
   export const fetchCurrentStatusController = async (req: Request, res: Response) => {
     try {
+      console.log('Incoming Headers From Status:', req.headers); // Log all headers
+      console.log('CSRF Token from Header From Status:', req.headers['x-csrf-token']);
       const { employeeId } = req.params;
   
       // Fetch User by `employee_id` to get `_id`
