@@ -234,7 +234,8 @@ export const updateArticleStatusHandler = async (req: AuthenticatedRequest, res:
       const userId = req.user?._id as mongoose.Types.ObjectId;
   
       if (!userId) {
-        return res.status(401).json({ message: 'Unauthorized' });
+        res.status(401).json({ message: 'Unauthorized' });
+        return;
       }
   
       // Like the article
@@ -271,7 +272,8 @@ export const updateArticleStatusHandler = async (req: AuthenticatedRequest, res:
       const { content } = req.body;
   
       if (!userId) {
-        return res.status(401).json({ message: 'Unauthorized' });
+        res.status(401).json({ message: 'Unauthorized' });
+        return;
       }
   
       if (!content) {

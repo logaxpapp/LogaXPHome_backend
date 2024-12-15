@@ -238,7 +238,8 @@ export const updateOnlineStatus = async (req: AuthenticatedRequest, res: Respons
 
     // Validate the incoming onlineStatus
     if (!onlineStatus || !Object.values(OnlineStatus).includes(onlineStatus)) {
-      return res.status(400).json({ message: 'Invalid or missing onlineStatus.' });
+      res.status(400).json({ message: 'Invalid or missing onlineStatus.' });
+      return;
     }
 
     // Update only the onlineStatus field
@@ -249,16 +250,19 @@ export const updateOnlineStatus = async (req: AuthenticatedRequest, res: Respons
     );
 
     if (!updatedUser) {
-      return res.status(404).json({ message: 'User not found.' });
+      res.status(404).json({ message: 'User not found.' });
+      return;
     }
 
     // Emit the online status update to other users via Socket.IO
     req.app.get('io').emit('user_status_update', { userId, onlineStatus });
 
     // Respond with success
-    return res.status(200).json({ message: 'Online status updated.', onlineStatus });
+    res.status(200).json({ message: 'Online status updated.', onlineStatus });
+    return;
   } catch (error: any) {
-    return res.status(500).json({ message: error.message || 'Internal Server Error.' });
+    res.status(500).json({ message: error.message || 'Internal Server Error.' });
+    return;
   }
 };
 
