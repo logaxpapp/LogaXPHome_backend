@@ -1,14 +1,15 @@
 // src/server.ts
-import app from './app';
+
+import {  server } from './app';
 import { connectDB } from './config/database';
 import logger from './config/logger';
 
-const PORT: number = parseInt(process.env.PORT as string, 10) || 5000;
+const PORT = process.env.PORT || 5000;
 
 // Connect to Database and Start Server
 connectDB()
   .then(() => {
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
     });
   })

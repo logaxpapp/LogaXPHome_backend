@@ -39,3 +39,19 @@ export enum Permission {
   // Add other permissions as needed
 }
 
+// New OnboardingStep Enum
+export enum OnboardingStep {
+  WelcomeEmail = 'WelcomeEmail',
+  ProfileSetup = 'ProfileSetup',
+  SystemTraining = 'SystemTraining',
+  ComplianceTraining = 'ComplianceTraining',
+  FirstTask = 'FirstTask',
+  // Add other onboarding steps as needed
+}
+
+export enum OnlineStatus {
+  Online = 'online',
+  Offline = 'offline',
+  Busy = 'busy',
+  Away = 'away',
+}

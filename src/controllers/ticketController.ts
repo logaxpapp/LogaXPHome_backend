@@ -7,14 +7,13 @@ import { TicketStatus } from '../models/Ticket';
 
 class TicketController {
   // Create a new ticket
-  async createTicket(req: Request, res: Response): Promise<void> {
+  async createTicket(req: Request, res: Response) {
     try {
       const user = req.user as IUser;
       const ticket = await ticketService.createTicket(req.body, user);
       res.status(201).json(ticket);
-    } catch (error) {
-      const err = error as Error;
-      res.status(400).json({ message: err.message });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
     }
   }
 
@@ -207,6 +206,24 @@ class TicketController {
       } else {
         res.status(500).json({ message: 'An unexpected error occurred' });
       }
+    }
+  }
+
+  async getTicketsAdvanced(req: Request, res: Response): Promise<void> {
+    try {
+      const filters = {
+        search: req.query.search as string,
+        status: req.query.status as string,
+        priority: req.query.priority as string,
+        department: req.query.department as string,
+        skip: parseInt(req.query.skip as string) || 0,
+        limit: parseInt(req.query.limit as string) || 10,
+      };
+
+      const result = await ticketService.getTicketsAdvanced(filters);
+      res.status(200).json(result);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
     }
   }
 }

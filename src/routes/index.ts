@@ -25,7 +25,13 @@ import Permission from './permissionRoutes';
 import Resource from './resourceRoutes';
 import Incident from './incidentRoutes';
 import Support from './supportRoutes';
-
+import ChangeRequest from './changeRequestRoutes';
+import Audit from './auditLogRoutes';
+import Article from './articleRoutes';
+import messageRoutes from './messageRoutes';
+import notificationRoutes from './notificationRoutes';
+import groupMessageRoutes from './groupMessageRoutes';
+import groupRoutes from './groupRoutes';
 const router = Router();
 
 // Unprotected Routes
@@ -50,7 +56,7 @@ router.use('/reports', reportRoutes);
 router.use('/admin/shifts', adminShiftRoutes);
 router.use('/users/shifts', userShiftRoutes);
 router.use('/payperiods', payPeriodRoutes);
-router.use('/employee/pay-periods', employeePayPeriodRouter);
+router.use('/employee-pay-periods', employeePayPeriodRouter);
 router.use('/time-entries', timeEntryRoutes);
 router.use('/roles', roleRouter);
 router.use('/settings', settingRoutes);
@@ -58,5 +64,12 @@ router.use('/permissions', Permission);
 router.use('/resources', Resource);
 router.use('/incidents', Incident);
 router.use('/support', Support);
+router.use('/change-requests', ChangeRequest);
+router.use('/audit-logs', Audit);
+router.use('/articles', Article);
+router.use('/messages', messageRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/groups', groupRoutes);
+router.use('/groups', groupMessageRoutes); 
 
 export default router;

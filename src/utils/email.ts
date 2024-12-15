@@ -287,3 +287,31 @@ export const sendResourceNotification = async (to: string, resourceTitle: string
 
   await sendEmail(options);
 };
+
+
+/**
+ * Sends an email using the specified options.
+ * @param options - The email options.
+ */
+export const sendEmailChangeMail = async (options: EmailOptions): Promise<void> => {
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || process.env.EMAIL_USER, // Sender address
+    to: options.to,                                         // Recipient address
+    subject: options.subject,                               // Subject line
+    text: options.text,                                     // Plain text body
+    html: options.html,                                     // HTML body
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Email sent to ${options.to} with subject "${options.subject}"`);
+  } catch (error: any) {
+    console.error(`Failed to send email to ${options.to}:`, {
+      error: error.message || error,
+      stack: error.stack,
+      subject: options.subject,
+    });
+    // Do NOT throw the error to prevent it from affecting main operations
+    // Optionally, log this incident to a monitoring service or database
+  }
+};

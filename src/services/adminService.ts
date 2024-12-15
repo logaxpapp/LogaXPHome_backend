@@ -317,7 +317,7 @@ export const editUserProfile = async (userId: string, updates: Partial<IUser>): 
   }
 
   // Prevent changing immutable fields
-  const immutableFields = ['email', 'employee_id', 'role'];
+  const immutableFields = ['email', 'employee_id'];
   immutableFields.forEach((field) => {
     if (updates[field as keyof IUser]) {
       throw { status: 400, message: `Cannot change ${field}` };
@@ -340,7 +340,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<IUser>)
   }
 
   // Define immutable fields that cannot be updated
-  const immutableFields = ['email', 'employee_id', 'role'];
+  const immutableFields = ['email', 'employee_id'];
   for (const field of immutableFields) {
     if (updates[field as keyof IUser]) {
       throw { status: 400, message: `Cannot change the field: ${field}` };

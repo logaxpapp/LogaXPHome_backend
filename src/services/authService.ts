@@ -21,6 +21,7 @@ interface RegisterInput {
   job_title: string;
   applications_managed: string[];
   department: string;
+  role: string;
   phone_number: string;
   address: {
     street: string;
@@ -47,13 +48,14 @@ export const registerUser = async (input: RegisterInput): Promise<string> => {
     name,
     email,
     password,
+    role, // Accept role explicitly
     job_title,
     applications_managed,
     department,
     phone_number,
     address,
     date_of_birth,
-    employment_type
+    employment_type,
   } = input;
 
   // Check if user exists
@@ -63,7 +65,7 @@ export const registerUser = async (input: RegisterInput): Promise<string> => {
   }
 
   // Assign role based on job_title or applications_managed
-  const role = determineUserRole(job_title, applications_managed);
+  const determinedRole = determineUserRole(job_title, applications_managed, role); 
 
   // Validate and parse date_of_birth
   let validDateOfBirth: Date | undefined = undefined;
@@ -81,7 +83,7 @@ export const registerUser = async (input: RegisterInput): Promise<string> => {
     name,
     email,
     password_hash: password, // Will be hashed by pre-save hook
-    role,
+    role: determinedRole,
     applications_managed,
     job_title,
     status: 'Pending',
@@ -180,7 +182,12 @@ export const loginUser = async (input: LoginInput): Promise<LoginOutput> => {
   return { token, expiresIn };
 };
 
-const determineUserRole = (job_title?: string, applications_managed: string[] = []): string => {
+const determineUserRole = (
+  job_title?: string,
+  applications_managed: string[] = [],
+  explicitRole?: string
+): string => {
+  if (explicitRole) return explicitRole; // Prioritize explicit role
   if (job_title && job_title.toLowerCase().includes('admin')) return 'admin';
   if (applications_managed.length > 0) return 'support';
   return 'user';
@@ -301,4 +308,12 @@ export const changePassword = async (
   await user.save();
 
   return 'Password updated successfully';
+};
+
+
+export const logoutUserById = async (userId: string) => {
+  // Invalidate all active sessions for the user
+  await Session.updateMany({ userId, isActive: true }, { isActive: false });
+
+  // Optionally, perform other cleanup tasks, such as revoking tokens
 };

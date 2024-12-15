@@ -63,7 +63,7 @@ router.post(
 router.get(
   '/',
   authenticateJWT,
-  authorizeRoles(UserRole.Admin),
+  authorizeRoles(UserRole.Admin, UserRole.User),
   getAllPayPeriodsController
 );
 

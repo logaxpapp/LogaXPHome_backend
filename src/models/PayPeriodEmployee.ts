@@ -12,6 +12,8 @@ export interface IPayPeriodEmployee extends Document {
   regularPay: number;
   overtimePay: number;
   deductions: number;
+  hourlyRate: number;
+  overtimeRate: number; 
   netPay: number;
   createdAt: Date;
   updatedAt: Date;
@@ -29,6 +31,8 @@ const PayPeriodEmployeeSchema: Schema<IPayPeriodEmployee> = new Schema(
     overtimePay: { type: Number, default: 0 },
     deductions: { type: Number, default: 0 }, // Taxes, benefits, etc.
     netPay: { type: Number, default: 0 }, // Gross pay minus deductions
+    hourlyRate: { type: Number, default: 0 }, // Store hourly rate
+    overtimeRate: { type: Number, default: 1.5 }, // Store overtime rate
   },
   { timestamps: true }
 );

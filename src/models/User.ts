@@ -1,6 +1,8 @@
+// src/models/User.ts
+
 import mongoose, { Document, Schema, Model } from 'mongoose';
 import bcrypt from 'bcrypt';
-import { UserRole, UserStatus, Application } from '../types/enums';
+import { UserRole, UserStatus, Application, OnboardingStep, OnlineStatus } from '../types/enums';
 import Session from './Session';
 
 // Address Subdocument Interface
@@ -39,10 +41,12 @@ export interface IUser extends Document {
   profile_picture_url?: string;
   date_of_birth?: Date;
   employment_type?: string;
-  onboarding_steps_completed?: string[];
+  hourlyRate?: number;
+  overtimeRate?: number;
+  onboarding_steps_completed?: OnboardingStep[]; // Updated to use OnboardingStep enum
   createdBy?: mongoose.Types.ObjectId | IUser;
-  createdAt: Date; // Add this
-  updatedAt: Date; // Add this
+  createdAt: Date;
+  updatedAt: Date;
   updatedBy?: mongoose.Types.ObjectId | IUser;
   token?: string;
   googleConnected?: boolean;
@@ -56,9 +60,11 @@ export interface IUser extends Document {
   lastLoginAt?: Date;
   passwordChangedAt?: Date;
   passwordExpiryNotified?: boolean;
-  acknowledgedPolicies?: mongoose.Types.ObjectId[]; 
+  acknowledgedPolicies?: mongoose.Types.ObjectId[];
+  onlineStatus: OnlineStatus;
   recordLogin(): Promise<void>;
   recordLogout(): Promise<void>;
+  [key: string]: any
 }
 
 // Address Subdocument Schema
@@ -72,6 +78,9 @@ const AddressSchema: Schema<IAddress> = new Schema(
   },
   { _id: false }
 );
+
+// OnboardingStep Enum Array
+const OnboardingStepsEnum = Object.values(OnboardingStep);
 
 // User Schema
 const UserSchema: Schema<IUser> = new Schema(
@@ -88,6 +97,7 @@ const UserSchema: Schema<IUser> = new Schema(
     ],
     role: { type: String, enum: Object.values(UserRole), required: true, default: UserRole.User },
     status: { type: String, enum: Object.values(UserStatus), default: UserStatus.Pending },
+    onlineStatus: { type: String, enum: Object.values(OnlineStatus), default: OnlineStatus.Offline },
     applications_managed: [{ type: String, enum: Object.values(Application), trim: true }],
     deletionReason: { type: String, trim: true },
     deletionApprovedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
@@ -101,7 +111,9 @@ const UserSchema: Schema<IUser> = new Schema(
     profile_picture_url: { type: String, trim: true },
     date_of_birth: { type: Date },
     employment_type: { type: String, trim: true },
-    onboarding_steps_completed: [{ type: String, trim: true }],
+    hourlyRate: { type: Number, default: 0 },
+    overtimeRate: { type: Number, default: 1.5 },
+    onboarding_steps_completed: [{type: String, enum: OnboardingStepsEnum, trim: true,},],
     googleConnected: { type: Boolean, default: false },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },

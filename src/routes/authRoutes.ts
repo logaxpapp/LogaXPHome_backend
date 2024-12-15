@@ -2,6 +2,7 @@
 
 import { Router } from 'express';
 import { authenticateJWT } from '../middlewares/authMiddleware';
+import { authorizeRoles } from '../middlewares/authorizeRoles';
 import { 
   register, 
   verifyEmailHandler, 
@@ -11,7 +12,9 @@ import {
   getAllLoggedInUsers,
   logout,
   changePasswordHandler,
+  adminLogoutUser,
 } from '../controllers/authController';
+import { UserRole } from '../types/enums';
 
 const router = Router();
 
@@ -27,6 +30,6 @@ router.post('/setup-account', setupAccount);
 // Protected route - only accessible by authenticated users
 router.get('/all-logged-in-users', authenticateJWT, getAllLoggedInUsers);
 router.put('/change-password', authenticateJWT, changePasswordHandler);
-
+router.post('/admin/logout/:userId', authenticateJWT, authorizeRoles(UserRole.Admin), adminLogoutUser);
 
 export default router;

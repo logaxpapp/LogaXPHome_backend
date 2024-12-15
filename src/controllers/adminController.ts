@@ -250,7 +250,7 @@ export const updateUserProfileHandler = async (req: Request, res: Response): Pro
   // Remove immutable fields
   delete updates.email;
   delete updates.employee_id;
-  delete updates.role;
+  // delete updates.role;
 
   try {
     const user = await updateUserProfile(id, updates);

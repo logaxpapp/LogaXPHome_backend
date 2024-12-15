@@ -1,23 +1,30 @@
 // src/models/AuditLog.ts
 
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Document, Schema, Model } from 'mongoose';
+import { IUser } from './User';
 
 export interface IAuditLog extends Document {
-  requestId: mongoose.Types.ObjectId;
-  action: string; // e.g., "approve", "reject", "add_step"
-  performedBy: mongoose.Types.ObjectId;
+  user: mongoose.Types.ObjectId | IUser; // The user whose profile was changed
+  changed_by: mongoose.Types.ObjectId | IUser; // The admin who approved the change
+  changes: Record<string, { old: any; new: any }>; // Fields that were changed with old and new values
   timestamp: Date;
-  comments?: string;
 }
 
+const ChangeDetailSchema = new Schema({
+  old: { type: Schema.Types.Mixed },
+  new: { type: Schema.Types.Mixed },
+});
+
 const AuditLogSchema: Schema<IAuditLog> = new Schema({
-  requestId: { type: Schema.Types.ObjectId, ref: 'ApprovalRequest', required: true },
-  action: { type: String, required: true },
-  performedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  changed_by: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  changes: {
+    type: Map,
+    of: ChangeDetailSchema,
+    required: true,
+  },
   timestamp: { type: Date, default: Date.now },
-  comments: { type: String },
 });
 
 const AuditLog: Model<IAuditLog> = mongoose.model<IAuditLog>('AuditLog', AuditLogSchema);
-
 export default AuditLog;

@@ -8,6 +8,7 @@ import {
   setupAccountService,
   getAllLoggedInUsersService,
   changePassword,
+  logoutUserById
 } from '../services/authService';
 import Session from '../models/Session';
 import User from '../models/User';
@@ -38,6 +39,8 @@ export const login = async (req: Request, res: Response) => {
     console.log('Incoming Headers:', req.headers); // Log all headers
     console.log('CSRF Token from Header:', req.headers['x-csrf-token']);
     const { email, password } = req.body;
+
+    console.log('Incoming Request:', req.body); // Log incoming request
 
     // Authenticate user and generate token
     const { token, expiresIn } = await loginUser({ email, password });
@@ -179,4 +182,23 @@ export const changePasswordHandler = async (req: Request, res: Response) => {
   }
 };
 
+
+export const adminLogoutUser = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    // Validate userId
+    if (!userId) {
+      res.status(400).json({ message: 'User ID is required.' });
+      return;
+    }
+
+    // Logout the user
+    await logoutUserById(userId);
+
+    res.status(200).json({ message: 'User logged out successfully.' });
+  } catch (error: any) {
+    res.status(error.status || 500).json({ message: error.message || 'Server error' });
+  }
+};
 

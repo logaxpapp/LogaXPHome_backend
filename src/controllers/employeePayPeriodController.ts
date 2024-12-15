@@ -7,43 +7,19 @@ import {
   updateEmployeePayPeriod,
   deleteEmployeePayPeriod,
 } from '../services/employeePayPeriodService';
-import { validateTimeEntriesForShifts } from '../middlewares/payPeriodValidation';
-import EmployeePayPeriod from '../models/PayPeriodEmployee';
-
-// Middleware integration and additional validations
 import mongoose from 'mongoose';
 
 // **Validation Middleware Example** for ObjectId
-const validateObjectId = (id: string): boolean => mongoose.Types.ObjectId.isValid(id);
-
-// **TimeEntry Conflict Prevention**
-const preventTimeEntryConflict = async (
-  employeeId: string,
-  shiftId: string,
-  clockIn: Date,
-  clockOut: Date | null
-): Promise<void> => {
-  const conflictingEntries = await EmployeePayPeriod.find({
-    employee: employeeId,
-    shift: shiftId,
-    $or: [
-      { clockIn: { $gte: clockIn, $lt: clockOut } },
-      { clockOut: { $gte: clockIn, $lt: clockOut } },
-    ],
-  });
-
-  if (conflictingEntries.length > 0) {
-    throw new Error('Conflicting time entries found for this employee and shift.');
-  }
-};
+export const isValidObjectId = (id: string): boolean => mongoose.Types.ObjectId.isValid(id);
 
 // **Controller Methods**
+
 // Get all pay periods for an employee
 export const getEmployeePayPeriodsController = async (req: Request, res: Response) => {
   try {
     const { employeeId } = req.params;
 
-    if (!validateObjectId(employeeId)) {
+    if (!isValidObjectId(employeeId)) {
       res.status(400).json({ message: 'Invalid employee ID.' });
       return;
     }
@@ -58,14 +34,14 @@ export const getEmployeePayPeriodsController = async (req: Request, res: Respons
 // Get detailed summary of a specific pay period
 export const getEmployeePayPeriodByIdController = async (req: Request, res: Response) => {
   try {
-    const { employeeId, payPeriodId } = req.params;
+    const { id } = req.params;
 
-    if (!validateObjectId(employeeId) || !validateObjectId(payPeriodId)) {
-      res.status(400).json({ message: 'Invalid employee ID or payPeriod ID.' });
+    if (!isValidObjectId(id)) {
+      res.status(400).json({ message: 'Invalid EmployeePayPeriod ID.' });
       return;
     }
 
-    const payPeriod = await getEmployeePayPeriodById(payPeriodId);
+    const payPeriod = await getEmployeePayPeriodById(id);
 
     if (!payPeriod) {
       res.status(404).json({ message: 'Pay period not found.' });
@@ -83,7 +59,7 @@ export const getEmployeePayPeriodsForPayPeriodController = async (req: Request, 
   try {
     const { payPeriodId } = req.params;
 
-    if (!validateObjectId(payPeriodId)) {
+    if (!isValidObjectId(payPeriodId)) {
       res.status(400).json({ message: 'Invalid payPeriod ID.' });
       return;
     }
@@ -95,34 +71,44 @@ export const getEmployeePayPeriodsForPayPeriodController = async (req: Request, 
   }
 };
 
-// Create EmployeePayPeriod (optional route for manual creation)
+/// Create EmployeePayPeriod
 export const createEmployeePayPeriodController = async (req: Request, res: Response) => {
   try {
-    const { payPeriodId, employeeId, totalHours, regularHours, overtimeHours, hourlyRate, overtimeRate } = req.body;
+    // Log the received request body
+    console.log('Received Request Body:', req.body);
 
-    if (!validateObjectId(payPeriodId) || !validateObjectId(employeeId)) {
-      res.status(400).json({ message: 'Invalid payPeriod ID or employee ID.' });
+    const { payPeriodId, employeeId, ...rest } = req.body;
+
+    // Validate required fields
+    if (!payPeriodId || !employeeId) {
+      console.log('Validation Error: Missing required fields');
+      res.status(400).json({ message: 'payPeriodId and employeeId are required.' });
       return;
     }
 
-    // Prevent time entry conflicts
-    await preventTimeEntryConflict(employeeId, payPeriodId, new Date(totalHours), null);
+    // Validate ObjectId
+    if (!isValidObjectId(payPeriodId) || !isValidObjectId(employeeId)) {
+      console.log('Validation Error: Invalid ObjectId');
+      res.status(400).json({ message: 'Invalid payPeriodId or employeeId.' });
+      return;
+    }
 
-    const employeePayPeriod = await createEmployeePayPeriod(
-      payPeriodId,
-      employeeId,
-      totalHours,
-      regularHours,
-      overtimeHours,
-      hourlyRate,
-      overtimeRate
-    );
+    // Attempt to create the EmployeePayPeriod
+    console.log('Attempting to create EmployeePayPeriod with:', { payPeriodId, employeeId, ...rest });
+    const employeePayPeriod = await createEmployeePayPeriod(payPeriodId, employeeId, rest);
+
+    // Log the created EmployeePayPeriod
+    console.log('Created EmployeePayPeriod:', employeePayPeriod);
 
     res.status(201).json(employeePayPeriod);
   } catch (error: any) {
+    // Log the error message
+    console.error('Error in createEmployeePayPeriodController:', error.message);
+
     res.status(400).json({ message: error.message });
   }
 };
+
 
 // Update EmployeePayPeriod
 export const updateEmployeePayPeriodController = async (req: Request, res: Response) => {
@@ -130,7 +116,7 @@ export const updateEmployeePayPeriodController = async (req: Request, res: Respo
     const { id } = req.params;
     const updates = req.body;
 
-    if (!validateObjectId(id)) {
+    if (!isValidObjectId(id)) {
       res.status(400).json({ message: 'Invalid EmployeePayPeriod ID.' });
       return;
     }
@@ -153,7 +139,7 @@ export const deleteEmployeePayPeriodController = async (req: Request, res: Respo
   try {
     const { id } = req.params;
 
-    if (!validateObjectId(id)) {
+    if (!isValidObjectId(id)) {
       res.status(400).json({ message: 'Invalid EmployeePayPeriod ID.' });
       return;
     }
