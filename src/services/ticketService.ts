@@ -48,7 +48,7 @@ class TicketService {
       .populate('assignedTo', 'name email')
       .populate('createdBy', 'name email')
       .skip(options.skip || 0)
-      .limit(options.limit || 10)
+      .limit(options.limit || 40)
       .sort(options.sort || { date: -1 });
 
     const total = await Ticket.countDocuments(filters);
@@ -172,7 +172,7 @@ class TicketService {
       .populate('createdBy', 'name email')
       .populate('comments.author', 'name email')
       .skip(options.skip || 0)
-      .limit(options.limit || 10)
+      .limit(options.limit || 20)
       .sort(options.sort || { date: -1 });
 
     const total = await Ticket.countDocuments(personalFilters);
@@ -254,6 +254,13 @@ class TicketService {
     return ticket;
   }
 
+  async getTicketWatchers(ticketId: string): Promise<ITicket | null> {
+    // Only fetch the watchers field from the ticket
+    return Ticket.findById(ticketId, 'watchers')
+      .populate('watchers', 'name email')
+      .exec();
+  }
+
   async getTicketsAdvanced(filters: TicketQueryOptions) {
     const pipeline: any[] = [];
     const matchConditions: any = {};
@@ -299,23 +306,63 @@ class TicketService {
     return { tickets, total };
   }
 
-  async addWatcher(ticketId: string, userId: string) {
-    return Ticket.findByIdAndUpdate(
+  async addWatcher(ticketId: string, userId: string, performedBy: IUser): Promise<ITicket | null> {
+    const updatedTicket = await Ticket.findByIdAndUpdate(
       ticketId,
-      { $addToSet: { watchers: new mongoose.Types.ObjectId(userId) } },
+      { $addToSet: { watchers: new mongoose.Types.ObjectId(userId) },
+        $push: {
+          activityLog: {
+            action: 'Watcher added',
+            performedBy: performedBy._id,
+            date: new Date(),
+          },
+        },
+      },
       { new: true }
-    );
+    ).populate('watchers', '_id');
+
+    if (updatedTicket) {
+      // Notify the added watcher
+      await createNotification({
+        type: 'WatcherAdded',
+        recipient: new mongoose.Types.ObjectId(userId),
+        sender: performedBy._id,
+        data: { ticketId: updatedTicket._id, title: updatedTicket.title },
+      });
+    }
+
+    return updatedTicket;
   }
 
-  async removeWatcher(ticketId: string, userId: string) {
-    return Ticket.findByIdAndUpdate(
+  async removeWatcher(ticketId: string, userId: string, performedBy: IUser): Promise<ITicket | null> {
+    const updatedTicket = await Ticket.findByIdAndUpdate(
       ticketId,
-      { $pull: { watchers: new mongoose.Types.ObjectId(userId) } },
+      { $pull: { watchers: new mongoose.Types.ObjectId(userId) },
+        $push: {
+          activityLog: {
+            action: 'Watcher removed',
+            performedBy: performedBy._id,
+            date: new Date(),
+          },
+        },
+      },
       { new: true }
     );
+
+    if (updatedTicket) {
+      // Optionally notify the removed watcher if desired
+      await createNotification({
+        type: 'WatcherRemoved',
+        recipient: new mongoose.Types.ObjectId(userId),
+        sender: performedBy._id,
+        data: { ticketId: updatedTicket._id, title: updatedTicket.title },
+      });
+    }
+
+    return updatedTicket;
   }
 
-  async updateCustomFields(ticketId: string, fields: Record<string, any>, user: IUser) {
+  async updateCustomFields(ticketId: string, fields: Record<string, any>, user: IUser): Promise<ITicket | null> {
     const updates: any = {};
     for (const [key, value] of Object.entries(fields)) {
       updates[`customFields.${key}`] = value;
@@ -326,10 +373,24 @@ class TicketService {
         action: 'Custom fields updated',
         performedBy: user._id,
         date: new Date(),
-      }
+      },
     };
 
-    return Ticket.findByIdAndUpdate(ticketId, updates, { new: true });
+    const ticket = await Ticket.findByIdAndUpdate(ticketId, updates, { new: true }).populate('watchers', '_id');
+
+    if (ticket) {
+      // Notify watchers of custom field update
+      for (const watcherId of ticket.watchers as mongoose.Types.ObjectId[]) {
+        await createNotification({
+          type: 'CustomFieldsUpdated',
+          recipient: watcherId,
+          sender: user._id,
+          data: { ticketId: ticketId, fields },
+        });
+      }
+    }
+
+    return ticket;
   }
 }
 
