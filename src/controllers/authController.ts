@@ -36,11 +36,7 @@ export const verifyEmailHandler = async (req: Request, res: Response) => {
 // src/controllers/authController.ts
 export const login = async (req: Request, res: Response) => {
   try {
-    console.log('Incoming Headers:', req.headers); // Log all headers
-    console.log('CSRF Token from Header:', req.headers['x-csrf-token']);
     const { email, password } = req.body;
-
-    console.log('Incoming Request:', req.body); // Log incoming request
 
     // Authenticate user and generate token
     const { token, expiresIn } = await loginUser({ email, password });
@@ -66,7 +62,7 @@ export const login = async (req: Request, res: Response) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 3600000, // 1 hour in milliseconds
+      maxAge: 2 * 60 * 60 * 1000, // 2 hours in milliseconds
     });
 
     // Return user data with token

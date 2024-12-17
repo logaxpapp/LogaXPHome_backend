@@ -15,6 +15,7 @@ import reportRoutes from './reportRoutes';
 import adminShiftRoutes from './adminShiftRoutes';
 import userShiftRoutes from './userShiftRoutes';
 import { refreshTokenMiddleware } from '../middlewares/refreshToken';
+import { authenticateJWT } from '../middlewares/authMiddleware';
 import googleRoutes from './googleRoutes';
 import payPeriodRoutes from './payPeriodRoutes';
 import timeEntryRoutes from './timeEntryRoutes';
@@ -37,9 +38,13 @@ const router = Router();
 // Unprotected Routes
 router.use('/auth', authRoutes);
 router.use('/google-calendar', googleRoutes);
+router.use('/articles', Article);
 
 // Apply authentication middleware globally after unprotected routes
-//router.use(refreshTokenMiddleware);
+router.use(refreshTokenMiddleware);
+
+// Apply authentication middleware to protected routes
+//router.use(authenticateJWT);
 
 // Protected Routes (all these routes require authentication)
 router.use('/logout', authRoutes);
@@ -66,7 +71,6 @@ router.use('/incidents', Incident);
 router.use('/support', Support);
 router.use('/change-requests', ChangeRequest);
 router.use('/audit-logs', Audit);
-router.use('/articles', Article);
 router.use('/messages', messageRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/groups', groupRoutes);

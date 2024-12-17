@@ -14,7 +14,7 @@ import xss from 'xss-clean';
 import rateLimit from 'express-rate-limit';
 import csurf from 'csurf';
 import cookieParser from 'cookie-parser';
-import { scheduleDailyTasks } from './utils/scheduler';
+// import { scheduleDailyTasks } from './utils/scheduler';
 import schedulePayPeriodCreation from './schedulers/payPeriodScheduler';
 import { initializeSocket } from './utils/socketHandler'; 
 
@@ -93,7 +93,7 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // Start Schedulers
-scheduleDailyTasks();
+//scheduleDailyTasks();
 schedulePayPeriodCreation();
 
 // Error Handling Middleware

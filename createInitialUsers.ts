@@ -8,7 +8,7 @@ const DATABASE_URL =
 // Connect to the cloud-based MongoDB
 const connectToDatabase = async () => {
   try {
-    await mongoose.connect(DATABASE_URL); // Updated to remove deprecated options
+    await mongoose.connect(DATABASE_URL); 
     console.log('Connected to MongoDB');
   } catch (error) {
     console.error('Failed to connect to MongoDB:', error);
@@ -19,8 +19,8 @@ const connectToDatabase = async () => {
 // Create the initial admin user
 const createAdminUser = async () => {
   const adminData = {
-    name: 'John First',
-    email: 'john@gmail.com',
+    name: 'Kolapo John',
+    email: 'kolapo@gmail.com',
     role: 'admin',
     status: 'Active',
     password_hash: '',
@@ -28,7 +28,7 @@ const createAdminUser = async () => {
 
   try {
     const salt = await bcrypt.genSalt(10);
-    adminData.password_hash = await bcrypt.hash('Abiodun@1', salt);
+    adminData.password_hash = await bcrypt.hash('Password@123', salt);
 
     const admin = new User(adminData);
     await admin.save();
@@ -42,8 +42,8 @@ const createAdminUser = async () => {
 // Create an active user
 const createActiveUser = async () => {
   const userData = {
-    name: 'Gerald Emeka',
-    email: 'gerry@gmail.com',
+    name: 'Nonso Paul',
+    email: 'nonso@gmail.com',
     role: 'admin',
     status: 'Active',
     password_hash: '',

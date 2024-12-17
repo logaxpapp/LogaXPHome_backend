@@ -1,7 +1,7 @@
 // src/utils/scheduler.ts
 
 import cron from 'node-cron';
-import { syncEmployeesWithHR } from '../services/hrIntegrationService';
+// import { syncEmployeesWithHR } from '../services/hrIntegrationService';
 import AppraisalPeriod from '../models/AppraisalPeriod';
 import { sendEmail } from './email';
 import ApprovalRequestBase, { IApprovalRequestBasePopulated } from '../models/ApprovalRequest';
@@ -76,20 +76,20 @@ export const scheduleDailyReminders = () => {
   });
 };
 
-/**
- * Schedule daily tasks.
- */
-export const scheduleDailyTasks = () => {
-  // Schedule employee syncing every day at 2 AM
-  cron.schedule('0 2 * * *', async () => {
-    try {
-      await syncEmployeesWithHR();
-      console.log('Employee synchronization with HR completed successfully.');
-    } catch (error) {
-      console.error('Error syncing employees with HR:', error);
-    }
-  });
+// /**
+//  * Schedule daily tasks.
+//  */
+// export const scheduleDailyTasks = () => {
+//   // Schedule employee syncing every day at 2 AM
+//   cron.schedule('0 2 * * *', async () => {
+//     try {
+//       await syncEmployeesWithHR();
+//       console.log('Employee synchronization with HR completed successfully.');
+//     } catch (error) {
+//       console.error('Error syncing employees with HR:', error);
+//     }
+//   });
 
-  // Schedule reminders
-  scheduleDailyReminders();
-};
+//   // Schedule reminders
+//   scheduleDailyReminders();
+// };
