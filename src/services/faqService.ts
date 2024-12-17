@@ -1,3 +1,5 @@
+// src/services/faqService.ts
+
 import FAQ, { IFAQ } from '../models/FAQ';
 
 class FAQService {
@@ -15,8 +17,12 @@ class FAQService {
     return FAQ.findByIdAndUpdate(
       faqId,
       { ...updateData, updatedBy: userId },
-      { new: true }
+      { new: true, runValidators: true } // Ensures validators run on update
     );
+  }
+
+  async getFAQById(faqId: string): Promise<IFAQ | null> {
+    return FAQ.findById(faqId);
   }
 
   async deleteFAQ(faqId: string): Promise<IFAQ | null> {

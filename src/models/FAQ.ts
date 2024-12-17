@@ -1,7 +1,17 @@
 // src/models/FAQ.ts
 
 import mongoose, { Schema, Document, Model } from 'mongoose';
-import { Application } from '../types/enums';
+
+// Enum for Applications
+
+export enum Application {
+  DocSend = 'DocSend',
+  TimeSync = 'TimeSync',
+  TaskBrick = 'TaskBrick',
+  Beautyhub = 'Beautyhub',
+  BookMiz = 'BookMiz',
+  GatherPlux = 'GatherPlux', // Corrected value
+}
 
 export interface IFAQ extends Document {
   question: string;
@@ -17,7 +27,7 @@ const FAQSchema: Schema = new Schema(
     answer: { type: String, required: true },
     application: {
       type: String,
-      enum: Object.values(Application), // Use the Application enum
+      enum: Object.values(Application), // Use the centralized enum
       required: true,
     },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },

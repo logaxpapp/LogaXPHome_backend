@@ -6,11 +6,16 @@ import { UserRole } from '../types/enums';
 
 const router = Router();
 
-// Public: Get FAQs
+// Public Route: Get all FAQs with optional filters and pagination
 router.get('/', faqController.getFAQs);
 
-// Protected: Admin Only
+// Protected Routes: Require Authentication
 router.use(authenticateJWT);
+
+// Route to get a single FAQ by ID
+router.get('/:id', faqController.getFAQById);
+
+// Admin Only Routes
 router.post('/', authorizeRoles(UserRole.Admin), faqController.createFAQ);
 router.put('/:id', authorizeRoles(UserRole.Admin), faqController.updateFAQ);
 router.delete('/:id', authorizeRoles(UserRole.Admin), faqController.deleteFAQ);
