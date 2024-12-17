@@ -1,4 +1,6 @@
-import mongoose, { Schema, Document } from 'mongoose';
+// src/models/FAQ.ts
+
+import mongoose, { Schema, Document, Model } from 'mongoose';
 import { Application } from '../types/enums';
 
 export interface IFAQ extends Document {
@@ -24,5 +26,7 @@ const FAQSchema: Schema = new Schema(
   { timestamps: true }
 );
 
-const FAQ = mongoose.model<IFAQ>('FAQ', FAQSchema);
+// Prevent model overwrite by checking if it already exists
+const FAQ: Model<IFAQ> = mongoose.models.FAQ || mongoose.model<IFAQ>('FAQ', FAQSchema);
+
 export default FAQ;
