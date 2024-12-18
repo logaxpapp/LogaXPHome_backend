@@ -11,24 +11,17 @@ class FAQController {
     try {
       console.log('Received FAQ Data:', req.body); // Log incoming data
       const user = req.user as IUser;
-
-      // Ensure user._id is a mongoose.Types.ObjectId
-      if (!(user._id instanceof mongoose.Types.ObjectId)) {
-        throw new Error('Invalid user ID format.');
-      }
-
+  
       const faq = await faqService.createFAQ(req.body, user._id);
-      res.status(201).json(faq);
+      console.log('Final FAQ Payload:', faq); // Ensure all fields, including application, are present
+      res.status(201).json({ message: 'FAQ created successfully', data: faq });
     } catch (error: any) {
       console.error('Error Creating FAQ:', error); // Log the error
-      if (error.name === 'ValidationError') {
-        res.status(400).json({ message: 'Validation Error', errors: error.errors });
-      } else {
-        const message = error instanceof Error ? error.message : 'Unknown error occurred';
-        res.status(400).json({ message });
-      }
+      const message = error instanceof Error ? error.message : 'Unknown error occurred';
+      res.status(400).json({ message });
     }
   }
+  
 
   async getFAQs(req: Request, res: Response) {
     try {
