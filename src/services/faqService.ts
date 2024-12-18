@@ -1,14 +1,11 @@
 // src/services/faqService.ts
 
-import FAQ, { IFAQ, Application } from '../models/FAQ';
+import FAQ, { IFAQ, Application } from '../models/ApplicationFAQ';
 import mongoose from 'mongoose';
 
 class FAQService {
   async createFAQ(faqData: Partial<IFAQ>, userId: mongoose.Types.ObjectId): Promise<IFAQ> {
     const { question, answer, application } = faqData;
-
-    // Log the payload being processed
-    console.log('FAQ Payload:', { question, answer, application });
 
     // Validate required fields
     if (!question || !answer || !application) {
@@ -27,7 +24,6 @@ class FAQService {
         createdBy: userId,
     });
 
-    console.log('Created FAQ Document:', faq); // Log the document before saving
     const savedFAQ = await faq.save();
 
     console.log('Saved FAQ:', savedFAQ); // Log after saving to confirm the field is persisted
@@ -37,28 +33,24 @@ class FAQService {
     const query = application ? { application } : {};
     return FAQ.find(query).sort({ createdAt: -1 });
   }
+  async getPublishedFAQs(application: string) {
+    // Explicitly type the query object to include 'application' as an optional key
+    const query: { published: boolean; application?: string } = { published: true };
+    
+    if (application) {
+      query.application = application;
+    }
+    
+    return await FAQ.find(query).exec();
+  }
+  
 
-  async updateFAQ(faqId: string, updateData: Partial<IFAQ>, userId: mongoose.Types.ObjectId): Promise<IFAQ | null> {
-    const { question, answer, application } = updateData;
-
-    // Build update object explicitly
-    const updateObj: Partial<IFAQ> = {
-      updatedBy: userId, // Assign updatedBy as ObjectId
-    };
-
-    if (question !== undefined) updateObj.question = question;
-    if (answer !== undefined) updateObj.answer = answer;
-    if (application !== undefined) updateObj.application = application;
-
-    const updatedFAQ = await FAQ.findByIdAndUpdate(
-      faqId,
-      updateObj,
+  async updateFAQ(id: string, updateData: Partial<IFAQ>, userId: mongoose.Types.ObjectId) {
+    return await FAQ.findByIdAndUpdate(
+      id,
+      { ...updateData, updatedBy: userId },
       { new: true, runValidators: true }
     );
-
-    console.log('Updated FAQ Document:', updatedFAQ); // Log after updating
-
-    return updatedFAQ;
   }
 
 

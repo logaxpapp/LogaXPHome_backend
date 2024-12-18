@@ -41,11 +41,19 @@ export const login = async (req: Request, res: Response) => {
     // Authenticate user and generate token
     const { token, expiresIn } = await loginUser({ email, password });
 
-    const user = await User.findOne({ email }).select('-password_hash');
+    const user = await User.findOne({ email }).select('+password_hash');
     if (!user) {
+      console.error('User not found or email is invalid');
       res.status(401).json({ message: 'Invalid email or password' });
       return;
     }
+
+    console.log('User fetched from database:', user);
+
+    if (!user.comparePassword) {
+      console.error('comparePassword method is missing or undefined');
+    }
+
 
     // Update last login time
     await user.recordLogin();

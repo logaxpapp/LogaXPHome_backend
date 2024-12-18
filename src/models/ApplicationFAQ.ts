@@ -1,5 +1,3 @@
-// src/models/FAQ.ts
-
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export enum Application {
@@ -15,29 +13,31 @@ export interface IFAQ extends Document {
   question: string;
   answer: string;
   application: Application;
+  published: boolean;
   createdBy: mongoose.Types.ObjectId;
   updatedBy?: mongoose.Types.ObjectId;
 }
 
-const FAQSchema: Schema = new Schema(
+const ApplicationFAQSchema: Schema = new Schema(
   {
     question: { type: String, required: true },
     answer: { type: String, required: true },
     application: {
       type: String,
       enum: Object.values(Application), 
-      required: [true, 'Application is required'], // Validation is correct
+      required: [true, 'Application is required'],
     },    
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    published: { type: Boolean, default: false },
   },
   { 
     timestamps: true,
-    strict: true, // Ensure strict mode is enabled
+    strict: true,
   }
 );
 
 // Prevent model overwrite by checking if it already exists
-const FAQ: Model<IFAQ> = mongoose.models.FAQ || mongoose.model<IFAQ>('FAQ', FAQSchema);
+const ApplicationFAQ: Model<IFAQ> = mongoose.models.ApplicationFAQ || mongoose.model<IFAQ>('ApplicationFAQ', ApplicationFAQSchema);
 
-export default FAQ;
+export default ApplicationFAQ;

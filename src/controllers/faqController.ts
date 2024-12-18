@@ -4,7 +4,7 @@ import { Request, Response } from 'express';
 import faqService from '../services/faqService';
 import { IUser } from '../models/User';
 import mongoose from 'mongoose';
-import { IFAQ } from '../models/FAQ';
+import { IFAQ } from '../models/ApplicationFAQ';
 
 class FAQController {
   async createFAQ(req: Request, res: Response) {
@@ -112,6 +112,81 @@ class FAQController {
       res.status(200).json({ message: 'FAQ deleted successfully' });
     } catch (error: any) {
       console.error('Error Deleting FAQ:', error); // Log the error
+      const message = error instanceof Error ? error.message : 'Unknown error occurred';
+      res.status(400).json({ message });
+    }
+  }
+  async publishFAQ(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+  
+      // Ensure req.user is defined
+      if (!req.user) {
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
+      }
+  
+      const updatedFAQ = await faqService.updateFAQ(id, { published: true }, req.user._id);
+  
+      if (!updatedFAQ) {
+        res.status(404).json({ message: 'FAQ not found' });
+        return;
+      }
+  
+      res.status(200).json({ message: 'FAQ published successfully', data: updatedFAQ });
+    } catch (error: any) {
+      console.error('Error Publishing FAQ:', error);
+      const message = error instanceof Error ? error.message : 'Unknown error occurred';
+      res.status(400).json({ message });
+    }
+  }
+  
+  async unpublishFAQ(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+  
+      // Ensure req.user is defined
+      if (!req.user) {
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
+      }
+  
+      const updatedFAQ = await faqService.updateFAQ(id, { published: false }, req.user._id);
+  
+      if (!updatedFAQ) {
+        res.status(404).json({ message: 'FAQ not found' });
+        return;
+      }
+  
+      res.status(200).json({ message: 'FAQ unpublished successfully', data: updatedFAQ });
+    } catch (error: any) {
+      console.error('Error Unpublishing FAQ:', error);
+      const message = error instanceof Error ? error.message : 'Unknown error occurred';
+      res.status(400).json({ message });
+    }
+  }
+  
+
+  async getPublishedFAQs(req: Request, res: Response) {
+    try {
+      const { application, page = '1', limit = '10' } = req.query;
+      const parsedPage = parseInt(page as string, 10);
+      const parsedLimit = parseInt(limit as string, 10);
+
+      const faqs = await faqService.getPublishedFAQs(application as string);
+
+      const startIndex = (parsedPage - 1) * parsedLimit;
+      const endIndex = startIndex + parsedLimit;
+      const paginatedFAQs = faqs.slice(startIndex, endIndex);
+
+      res.status(200).json({
+        data: paginatedFAQs,
+        total: faqs.length,
+        page: parsedPage,
+        limit: parsedLimit,
+      });
+    } catch (error: any) {
+      console.error('Error Getting Published FAQs:', error);
       const message = error instanceof Error ? error.message : 'Unknown error occurred';
       res.status(400).json({ message });
     }

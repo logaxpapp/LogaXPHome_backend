@@ -178,9 +178,11 @@ UserSchema.pre<IUser>('save', async function (next) {
 
 // Method to Compare Passwords
 UserSchema.methods.comparePassword = function (candidatePassword: string): Promise<boolean> {
+  if (!this.password_hash) {
+    throw new Error('Password hash is missing.');
+  }
   return bcrypt.compare(candidatePassword, this.password_hash);
 };
-
 // Method to Record Login
 UserSchema.methods.recordLogin = async function () {
   this.lastLoginAt = new Date();

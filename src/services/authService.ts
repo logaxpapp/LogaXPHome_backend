@@ -134,18 +134,23 @@ export const loginUser = async (input: LoginInput): Promise<LoginOutput> => {
   const { email, password } = input;
 
   const user = await User.findOne({ email });
-  if (!user) {
-    throw { status: 400, message: 'Invalid email or password' };
-  }
+if (!user) {
+  console.error('User not found or email is invalid');
+  throw { status: 400, message: 'Invalid email or password' };
+}
 
-  if (user.status !== 'Active') {
-    throw { status: 400, message: 'Please verify your email before logging in' };
-  }
+console.log('User fetched from database:', user);
 
-  const isMatch = await user.comparePassword(password);
-  if (!isMatch) {
-    throw { status: 400, message: 'Invalid email or password' };
-  }
+if (!user.comparePassword) {
+  console.error('comparePassword method is missing or undefined');
+  throw { status: 500, message: 'comparePassword method is not available on user document' };
+}
+
+const isMatch = await user.comparePassword(password);
+if (!isMatch) {
+  throw { status: 400, message: 'Invalid email or password' };
+}
+
 
   // Password expiration logic
   const PASSWORD_EXPIRATION_DAYS = 180; // 6 months
