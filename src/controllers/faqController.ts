@@ -21,7 +21,7 @@ class FAQController {
       }
     }
   }
-
+  
   async getFAQs(req: Request, res: Response) {
     try {
       const { application, page = '1', limit = '10' } = req.query;
