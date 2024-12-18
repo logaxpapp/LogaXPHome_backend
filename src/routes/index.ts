@@ -1,5 +1,5 @@
 // src/routes/index.ts
-
+import express from 'express';
 import { Router } from 'express';
 import authRoutes from './authRoutes';
 import profileRoutes from './profileRoutes';

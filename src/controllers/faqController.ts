@@ -3,13 +3,21 @@
 import { Request, Response } from 'express';
 import faqService from '../services/faqService';
 import { IUser } from '../models/User';
+import mongoose from 'mongoose';
+import { IFAQ } from '../models/FAQ';
 
 class FAQController {
   async createFAQ(req: Request, res: Response) {
     try {
       console.log('Received FAQ Data:', req.body); // Log incoming data
       const user = req.user as IUser;
-      const faq = await faqService.createFAQ(req.body, user._id.toString());
+
+      // Ensure user._id is a mongoose.Types.ObjectId
+      if (!(user._id instanceof mongoose.Types.ObjectId)) {
+        throw new Error('Invalid user ID format.');
+      }
+
+      const faq = await faqService.createFAQ(req.body, user._id);
       res.status(201).json(faq);
     } catch (error: any) {
       console.error('Error Creating FAQ:', error); // Log the error
@@ -21,7 +29,7 @@ class FAQController {
       }
     }
   }
-  
+
   async getFAQs(req: Request, res: Response) {
     try {
       const { application, page = '1', limit = '10' } = req.query;
@@ -52,11 +60,16 @@ class FAQController {
     try {
       console.log('Received Update Data:', req.body); // Log incoming data
       const user = req.user as IUser;
-      const updatedFAQ = await faqService.updateFAQ(
-        req.params.id,
-        req.body,
-        user._id.toString()
-      );
+
+      // Ensure user._id is a mongoose.Types.ObjectId
+      if (!(user._id instanceof mongoose.Types.ObjectId)) {
+        throw new Error('Invalid user ID format.');
+      }
+
+      const faqId = req.params.id;
+      const updateData: Partial<IFAQ> = req.body;
+
+      const updatedFAQ = await faqService.updateFAQ(faqId, updateData, user._id);
       if (!updatedFAQ) {
         res.status(404).json({ message: 'FAQ not found' });
         return;
@@ -73,7 +86,6 @@ class FAQController {
       }
     }
   }
-
   async getFAQById(req: Request, res: Response) {
     try {
       const { id } = req.params;

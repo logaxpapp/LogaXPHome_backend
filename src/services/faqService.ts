@@ -1,11 +1,31 @@
 // src/services/faqService.ts
 
-import FAQ, { IFAQ } from '../models/FAQ';
+import FAQ, { IFAQ, Application } from '../models/FAQ';
+import mongoose from 'mongoose';
 
 class FAQService {
-  async createFAQ(faqData: Partial<IFAQ>, userId: string): Promise<IFAQ> {
-    const faq = new FAQ({ ...faqData, createdBy: userId });
-    return faq.save();
+  async createFAQ(faqData: Partial<IFAQ>, userId: mongoose.Types.ObjectId): Promise<IFAQ> {
+    const { question, answer, application } = faqData;
+
+    // Validate required fields
+    if (!question || !answer || !application) {
+      throw new Error('Missing required fields: question, answer, and application.');
+    }
+
+    const faq = new FAQ({
+      question,            // Explicitly assign question
+      answer,              // Explicitly assign answer
+      application: application as Application, // Explicitly assign application with correct type
+      createdBy: userId,   // Assign createdBy as ObjectId
+    });
+
+    console.log('Created FAQ Document:', faq); // Log before saving
+
+    const savedFAQ = await faq.save();
+
+    console.log('Saved FAQ Document:', savedFAQ); // Log after saving
+
+    return savedFAQ;
   }
 
   async getFAQs(application?: string): Promise<IFAQ[]> {
@@ -13,13 +33,29 @@ class FAQService {
     return FAQ.find(query).sort({ createdAt: -1 });
   }
 
-  async updateFAQ(faqId: string, updateData: Partial<IFAQ>, userId: string): Promise<IFAQ | null> {
-    return FAQ.findByIdAndUpdate(
+  async updateFAQ(faqId: string, updateData: Partial<IFAQ>, userId: mongoose.Types.ObjectId): Promise<IFAQ | null> {
+    const { question, answer, application } = updateData;
+
+    // Build update object explicitly
+    const updateObj: Partial<IFAQ> = {
+      updatedBy: userId, // Assign updatedBy as ObjectId
+    };
+
+    if (question !== undefined) updateObj.question = question;
+    if (answer !== undefined) updateObj.answer = answer;
+    if (application !== undefined) updateObj.application = application;
+
+    const updatedFAQ = await FAQ.findByIdAndUpdate(
       faqId,
-      { ...updateData, updatedBy: userId },
-      { new: true, runValidators: true } // Ensures validators run on update
+      updateObj,
+      { new: true, runValidators: true }
     );
+
+    console.log('Updated FAQ Document:', updatedFAQ); // Log after updating
+
+    return updatedFAQ;
   }
+
 
   async getFAQById(faqId: string): Promise<IFAQ | null> {
     return FAQ.findById(faqId);

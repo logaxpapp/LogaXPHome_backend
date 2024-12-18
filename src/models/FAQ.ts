@@ -31,7 +31,10 @@ const FAQSchema: Schema = new Schema(
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    strict: true, // Ensure strict mode is enabled
+  }
 );
 
 // Prevent model overwrite by checking if it already exists
