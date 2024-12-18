@@ -12,11 +12,16 @@ class FAQService {
       throw new Error('Missing required fields: question, answer, and application.');
     }
 
+    // Validate that the application is a valid enum value
+    if (!Object.values(Application).includes(application as Application)) {
+      throw new Error(`Invalid application value: ${application}`);
+    }
+
     const faq = new FAQ({
-      question,            // Explicitly assign question
-      answer,              // Explicitly assign answer
-      application: application as Application, // Explicitly assign application with correct type
-      createdBy: userId,   // Assign createdBy as ObjectId
+      question,
+      answer,
+      application: application as Application, // Explicitly cast to Application enum
+      createdBy: userId,
     });
 
     console.log('Created FAQ Document:', faq); // Log before saving
@@ -27,6 +32,7 @@ class FAQService {
 
     return savedFAQ;
   }
+
 
   async getFAQs(application?: string): Promise<IFAQ[]> {
     const query = application ? { application } : {};

@@ -25,8 +25,8 @@ const FAQSchema: Schema = new Schema(
     answer: { type: String, required: true },
     application: {
       type: String,
-      enum: Object.values(Application),
-      required: true,
+      enum: Object.values(Application), 
+      required: [true, 'Application is required'], // Add a custom error message
     },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
