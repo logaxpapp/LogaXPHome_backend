@@ -4,6 +4,7 @@ import NewsletterSubscription, {
     INewsletterSubscription,
     SubscriptionStatus,
   } from '../models/NewsletterSubscription';
+  import Newsletter from '../models/Newsletter';
   import crypto from 'crypto';
   import { sendNewsletterEmail, sendConfirmationEmail, sendUnsubscribeConfirmationEmail } from '../utils/email';
   

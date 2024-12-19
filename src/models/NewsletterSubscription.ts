@@ -18,6 +18,7 @@ export interface INewsletterSubscription extends Document {
   confirmationToken?: string; // For email confirmation
   unsubscribeToken?: string; // For secure unsubscription
   unsubscribedAt?: Date;
+  image?: string;
 }
 
 const NewsletterSubscriptionSchema: Schema<INewsletterSubscription> = new Schema(
@@ -44,6 +45,9 @@ const NewsletterSubscriptionSchema: Schema<INewsletterSubscription> = new Schema
     },
     unsubscribeToken: {
       type: String,
+    },
+    image: {
+      type: String, 
     },
   },
   {
