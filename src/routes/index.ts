@@ -34,6 +34,7 @@ import notificationRoutes from './notificationRoutes';
 import groupMessageRoutes from './groupMessageRoutes';
 import groupRoutes from './groupRoutes';
 import FAQRouter from './faqRoutes';
+import newsletterRoutes from './newsletterRoutes';
 const router = Router();
 
 // Unprotected Routes
@@ -77,5 +78,6 @@ router.use('/notifications', notificationRoutes);
 router.use('/groups', groupRoutes);
 router.use('/groups', groupMessageRoutes); 
 router.use('/faqs', FAQRouter);
+router.use('/newsletter', newsletterRoutes);
 
 export default router;

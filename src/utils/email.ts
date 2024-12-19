@@ -1,4 +1,4 @@
-// src/utils/sendEmail.ts
+// src/utils/email.ts
 
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
@@ -19,10 +19,7 @@ const transporter = nodemailer.createTransport({
   connectionTimeout: 30000, // Increase timeout to 30 seconds
 });
 
-/**
- * Sends an email using the specified options.
- * @param options - The email options.
- */
+
 export const sendEmail = async (options: EmailOptions): Promise<void> => {
   const mailOptions = {
     from: process.env.EMAIL_FROM || process.env.EMAIL_USER, // Sender address
@@ -46,29 +43,26 @@ export const sendEmail = async (options: EmailOptions): Promise<void> => {
   }
 };
 
-/**
- * Sends an email verification for user creation.
- * @param to - Recipient's email address.
- * @param token - Verification token.
- */
 export const sendVerificationEmail = async (to: string, token: string): Promise<void> => {
-  const verificationLink = `http://localhost:5000/api/auth/verify-email?token=${token}`;
+  const verificationLink = `${process.env.BACKEND_URL}/auth/verify-email?token=${token}`;
 
   const options: EmailOptions = {
     to,
     subject: 'Verify Your Email',
-    text: `Please verify your email by clicking the following link: ${verificationLink}`,
+    text: `Hello,
+
+Please verify your email by clicking the following link: ${verificationLink}
+
+Best regards,
+Support Team`,
     html: `<p>Please verify your email by clicking <a href="${verificationLink}">here</a>.</p>`,
   };
 
   await sendEmail(options);
 };
 
-/**
- * Sends account deletion notifications based on status.
- * @param to - Recipient's email address.
- * @param status - Status of the deletion request ('approved' or 'rejected').
- */
+
+
 export const sendAccountDeletionNotification = async (to: string, status: string): Promise<void> => {
   let subject = '';
   let text = '';
@@ -96,46 +90,47 @@ export const sendAccountDeletionNotification = async (to: string, status: string
   await sendEmail(options);
 };
 
-/**
- * Sends an invitation email for user signup.
- * @param to - Recipient's email address.
- * @param token - Invitation token.
- */
+
 export const sendInvitationEmail = async (to: string, token: string): Promise<void> => {
-  const inviteLink = `http://localhost:5173/setup-account?token=${token}`;
+  const inviteLink = `${process.env.FRONTEND_URL}/setup-account?token=${token}`;
 
   const options: EmailOptions = {
     to,
     subject: 'You are Invited to Join Our Platform',
-    text: `You have been invited to join our platform. Please set up your account by clicking the following link: ${inviteLink}`,
+    text: `Hello,
+
+You have been invited to join our platform. Please set up your account by clicking the following link: ${inviteLink}
+
+Best regards,
+Support Team`,
     html: `<p>You have been invited to join our platform. Please set up your account by clicking <a href="${inviteLink}">here</a>.</p>`,
   };
 
   await sendEmail(options);
 };
 
-/**
- * Sends a password reset email.
- * @param to - Recipient's email address.
- * @param token - Password reset token.
- */
+
 export const sendPasswordResetEmail = async (to: string, token: string): Promise<void> => {
-  const resetLink = `http://localhost:5000/api/auth/reset-password?token=${token}`;
+  const resetLink = `${process.env.BACKEND_URL}/auth/reset-password?token=${token}`;
 
   const options: EmailOptions = {
     to,
     subject: 'Reset Your Password',
-    text: `You can reset your password by clicking the following link: ${resetLink}`,
+    text: `Hello,
+
+You can reset your password by clicking the following link: ${resetLink}
+
+If you did not request a password reset, please ignore this email.
+
+Best regards,
+Support Team`,
     html: `<p>You can reset your password by clicking <a href="${resetLink}">here</a>.</p>`,
   };
 
   await sendEmail(options);
 };
 
-/**
- * Notifies all admins of a user's account deletion request.
- * @param user - The user requesting account deletion.
- */
+
 export const notifyAdminsOfDeletionRequest = async (user: IUser): Promise<void> => {
   const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(email => email.trim());
   if (!adminEmails || adminEmails.length === 0) {
@@ -158,10 +153,7 @@ export const notifyAdminsOfDeletionRequest = async (user: IUser): Promise<void> 
   }
 };
 
-/**
- * Notifies a user that their account deletion request has been rejected.
- * @param user - The user whose deletion request was rejected.
- */
+
 export const notifyUserDeletionRejection = async (user: IUser): Promise<void> => {
   if (!user.email) {
     console.warn(`User ${user._id} does not have an email to notify.`);
@@ -178,10 +170,6 @@ export const notifyUserDeletionRejection = async (user: IUser): Promise<void> =>
   await sendEmail(options);
 };
 
-/**
- * Notifies a user that their account has been deleted by an admin.
- * @param user - The user whose account has been deleted.
- */
 export const notifyUserAccountDeleted = async (user: IUser): Promise<void> => {
   if (!user.email) {
     console.warn(`User ${user._id} does not have an email to notify.`);
@@ -198,10 +186,7 @@ export const notifyUserAccountDeleted = async (user: IUser): Promise<void> => {
   await sendEmail(options);
 };
 
-/**
- * (Optional) Notifies a user that their account deletion request has been approved.
- * @param user - The user whose deletion request was approved.
- */
+
 export const notifyUserDeletionApproval = async (user: IUser): Promise<void> => {
   if (!user.email) {
     console.warn(`User ${user._id} does not have an email to notify.`);
@@ -218,10 +203,6 @@ export const notifyUserDeletionApproval = async (user: IUser): Promise<void> => 
   await sendEmail(options);
 };
 
-/**
- * Sends a notification to all admins when a user signs up.
- * @param user - The user who signed up.
- */
 
 // Send Shift Assignment Notification
 export const sendShiftAssignmentNotification = async (user: IUser, shift: IShift, action: 'Assigned' | 'Approved' | 'Rejected'): Promise<void> => {
@@ -260,39 +241,103 @@ export const sendShiftAssignmentNotification = async (user: IUser, shift: IShift
   await transporter.sendMail(mailOptions);
 };
 
-/**
- * Sends a password expiry reminder email to the user.
- * @param to - Recipient's email address.
- * @param name - Recipient's name.
- */
 export const sendPasswordExpiryReminder = async (to: string, name: string): Promise<void> => {
+  const changePasswordLink = `${process.env.FRONTEND_URL}/change-password`;
+
   const options: EmailOptions = {
     to,
     subject: 'Your password will expire soon',
-    text: `Hello ${name},\n\nYour password will expire in less than ${NOTIFICATION_DAYS_BEFORE} days. Please change your password to continue accessing our services without interruption.\n\nBest regards,\nSupport Team`,
-    html: `<p>Hello ${name},</p><p>Your password will expire in less than <strong>${NOTIFICATION_DAYS_BEFORE}</strong> days. Please <a href="http://yourapp.com/change-password">change your password</a> to continue accessing our services without interruption.</p><p>Best regards,<br/>Support Team</p>`,
+    text: `Hello ${name},
+
+Your password will expire in less than ${NOTIFICATION_DAYS_BEFORE} days. Please change your password to continue accessing our services without interruption.
+
+Best regards,
+Support Team`,
+    html: `<p>Hello ${name},</p>
+           <p>Your password will expire in less than <strong>${NOTIFICATION_DAYS_BEFORE}</strong> days. Please <a href="${changePasswordLink}">change your password</a> to continue accessing our services without interruption.</p>
+           <p>Best regards,<br/>Support Team</p>`,
   };
 
   await sendEmail(options);
 };
 
 
-export const sendResourceNotification = async (to: string, resourceTitle: string) => {
-  const options = {
+
+export const sendResourceNotification = async (to: string, resourceTitle: string): Promise<void> => {
+  const resourceLink = `${process.env.FRONTEND_URL}/resources/${encodeURIComponent(resourceTitle)}`;
+
+  const options: EmailOptions = {
     to,
     subject: `New Resource: ${resourceTitle}`,
-    text: `A new resource "${resourceTitle}" has been assigned to you. Please review and acknowledge.`,
-    html: `<p>A new resource <strong>${resourceTitle}</strong> has been assigned to you. Please <a href="http://yourapp.com/resources/${resourceTitle}">review and acknowledge</a>.</p>`,
+    text: `Hello,
+
+A new resource "${resourceTitle}" has been assigned to you. Please review and acknowledge by visiting: ${resourceLink}
+
+Best regards,
+Support Team`,
+    html: `<p>A new resource <strong>${resourceTitle}</strong> has been assigned to you. Please <a href="${resourceLink}">review and acknowledge</a>.</p>`,
   };
 
   await sendEmail(options);
 };
 
 
-/**
- * Sends an email using the specified options.
- * @param options - The email options.
- */
+export const sendConfirmationEmail = async (to: string, token: string): Promise<void> => {
+  const confirmationUrl = `${process.env.FRONTEND_URL}/newsletter/confirm/${token}`;
+  const mailOptions: EmailOptions = {
+    to,
+    subject: 'Confirm Your Newsletter Subscription',
+    text: `Thank you for subscribing! Please confirm your subscription by clicking the following link: ${confirmationUrl}`,
+    html: `
+      <h1>Thank you for subscribing!</h1>
+      <p>Please confirm your subscription by clicking the link below:</p>
+      <a href="${confirmationUrl}">Confirm Subscription</a>
+      <p>If you did not subscribe, please ignore this email.</p>
+    `,
+  };
+
+  await sendEmail(mailOptions);
+};
+
+
+export const sendUnsubscribeConfirmationEmail = async (to: string): Promise<void> => {
+  const unsubscribeUrl = `${process.env.FRONTEND_URL}/newsletter/subscribe`;
+  
+  const mailOptions: EmailOptions = {
+    to,
+    subject: 'You have unsubscribed from our Newsletter',
+    text: `You have successfully unsubscribed from our newsletter. We're sorry to see you go! If this was a mistake, you can subscribe again by visiting our website.`,
+    html: `
+      <h1>Unsubscription Confirmed</h1>
+      <p>You have successfully unsubscribed from our newsletter. We're sorry to see you go!</p>
+      <p>If this was a mistake, you can <a href="${unsubscribeUrl}">subscribe again</a>.</p>
+    `,
+  };
+
+  await sendEmail(mailOptions);
+};
+
+
+
+export const sendNewsletterEmail = async (
+  to: string,
+  subject: string,
+  content: string
+): Promise<void> => {
+  const mailOptions: EmailOptions = {
+    to,
+    subject,
+    text: `You have received a new newsletter. Please view it in an HTML-compatible email client.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        ${content}
+      </div>
+    `,
+  };
+
+  await sendEmail(mailOptions);
+};
+
 export const sendEmailChangeMail = async (options: EmailOptions): Promise<void> => {
   const mailOptions = {
     from: process.env.EMAIL_FROM || process.env.EMAIL_USER, // Sender address
