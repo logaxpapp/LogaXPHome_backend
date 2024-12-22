@@ -23,6 +23,9 @@ const router = express.Router();
 // GET /api/resources
 router.get('/', authenticateJWT, getResourcesHandler);
 
+// GET /api/resources/user/:userId
+router.get('/user', authenticateJWT, getUserResourcesHandler);
+
 // GET /api/resources/:id
 router.get('/:id', authenticateJWT, getResourceByIdHandler);
 
@@ -59,8 +62,7 @@ router.put('/:resourceId/acknowledge', authenticateJWT, acknowledgeResourceHandl
 // GET /api/resources/:id/related
 router.get('/:id/related', authenticateJWT, getRelatedResourcesHandler);
 
-// GET /api/resources/user/:userId
-router.get('/user', authenticateJWT, getUserResourcesHandler);
+
 
 
 export default router;

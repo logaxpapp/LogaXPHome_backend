@@ -36,6 +36,8 @@ import groupRoutes from './groupRoutes';
 import FAQRouter from './faqRoutes';
 import newsletterRoutes from './newsletterRoutes';
 import newslettersRoutes from './newslettersRoutes';
+import contractRoute from './contractsRoutes';
+import paymentRoutes from './paymentRoutes';
 const router = Router();
 
 // Unprotected Routes
@@ -81,5 +83,7 @@ router.use('/groups', groupMessageRoutes);
 router.use('/faqs', FAQRouter);
 router.use('/newsletter', newsletterRoutes);
 router.use('/newsletters', newslettersRoutes);
+router.use('/contracts', contractRoute);
+router.use('/payments', paymentRoutes);
 
 export default router;

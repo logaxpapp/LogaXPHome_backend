@@ -19,6 +19,7 @@ import {
 import { authenticateJWT } from '../middlewares/authMiddleware';
 import { authorizeRoles } from '../middlewares/authorizeRoles';
 import { register, verifyEmailHandler } from '../controllers/authController';
+import { createContractorHandler } from '../controllers/createContractorHandler';
 import { UserRole } from '../types/enums';
 import multer from 'multer';
 
@@ -38,6 +39,14 @@ router.put('/deletion-requests/:id/reject', rejectDeletionHandler);
 
 // User Management
 router.post('/users/invite', createUserAndSendInviteHandler);
+
+// Create Contractor
+router.post(
+  '/users/contractors',
+  authenticateJWT,
+  authorizeRoles(UserRole.Admin), // Only admins can create contractors
+  createContractorHandler
+);
 router.post('/users/bulk-create', upload.single('file'), bulkCreateUsersFromCSVHandler);
 router.get('/users', getAllUsersHandler);
 router.put('/users/:id/role', changeUserRoleHandler);

@@ -7,6 +7,7 @@ import ResourceAcknowledgment from '../models/ResourceAcknowledgment';
 import { IResourceAcknowledgment } from '../models/ResourceAcknowledgment';
 import { sendResourceNotification } from '../utils/email';
 
+
 // Input Interfaces
 interface CreateResourceInput {
   title: string;
@@ -77,21 +78,37 @@ interface IResourceAcknowledgmentPopulated extends Omit<IResourceAcknowledgment,
     return { resources, total };
   };
   
+  export const acknowledgeResource = async (
+    userId: string,
+    resourceId: string,
+    signature: { text: string; font: string; size: string; color: string }
+  ) => {
+    console.log('Acknowledging resource:', resourceId);
+    console.log('Signature:', signature);
   
-  
-  
-  export const acknowledgeResource = async (userId: string, resourceId: string) => {
+    // Validate the resourceId
     if (!mongoose.Types.ObjectId.isValid(resourceId)) {
       throw new Error('Invalid Resource ID.');
     }
   
-    const acknowledgment = await ResourceAcknowledgment.findOne({ userId, resourceId });
-    if (!acknowledgment) throw new Error('Resource not found for this user.');
+    // Ensure the resource exists
+    const resource = await Resource.findById(resourceId);
+    if (!resource) {
+      throw new Error('Resource not found.');
+    }
   
-    if (acknowledgment.acknowledgedAt) throw new Error('Resource already acknowledged.');
-  
-    acknowledgment.acknowledgedAt = new Date();
-    await acknowledgment.save();
+    // Create or update the acknowledgment
+    const acknowledgment = await ResourceAcknowledgment.findOneAndUpdate(
+      { userId, resourceId }, // Match by user and resource
+      {
+        acknowledgedAt: new Date(),
+        signature: signature.text,
+        font: signature.font,
+        size: signature.size,
+        color: signature.color,
+      },
+      { upsert: true, new: true } // Create new if not found
+    );
   
     return acknowledgment;
   };
@@ -171,39 +188,41 @@ export const getRelatedResources = async (tags: Tags[], resourceId: string) => {
     .populate('createdBy', 'name email');
 };
 
+function isPopulatedResource(
+  resource: mongoose.Types.ObjectId | IResource
+): resource is IResource {
+  return typeof resource === 'object' && 'toObject' in resource;
+}
 
-
-// Get Resources by User ID
 export const getUserResources = async (userId: string) => {
-  try {
-    console.log('Incoming User ID:', userId);
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new Error('Invalid User ID.');
+  }
 
+  try {
+    // Fetch acknowledgments and populate associated resources
     const acknowledgments = await ResourceAcknowledgment.find({ userId })
-      .populate({
+      .populate<{ resourceId: IResource }>({
         path: 'resourceId',
-        select: '_id title type content images tags createdAt createdBy', // Fetch necessary fields
+        select: '_id title type content images tags createdAt createdBy',
       })
       .exec();
 
-    console.log('Acknowledgments:', acknowledgments);
-
+    // Filter and map the data to include all fields
     const validResources = acknowledgments
-      .filter((ack) => {
-        // Ensure resourceId is populated and valid
-        console.log('Checking resourceId:', ack.resourceId);
-        return ack.resourceId && typeof ack.resourceId === 'object' && 'toObject' in ack.resourceId;
-      })
-      .map((ack) => {
-        const resource = ack.resourceId as IResource;
-        return {
-          ...resource.toObject(),
-          acknowledgedAt: ack.acknowledgedAt,
-        };
-      });
+      .filter((ack) => ack.resourceId && ack.resourceId._id) // Ensure resourceId is populated
+      .map((ack) => ({
+        ...ack.resourceId.toObject(),
+        acknowledgedAt: ack.acknowledgedAt,
+        signature: ack.signature, // Include acknowledgment fields
+        font: ack.font,
+        size: ack.size,
+        color: ack.color,
+      }));
 
     return validResources;
   } catch (error) {
-    console.error('Error in getUserResources:', error);
+    console.error('Error fetching resources:', error);
     throw error;
   }
 };

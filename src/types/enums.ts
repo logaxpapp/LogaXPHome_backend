@@ -13,6 +13,7 @@ export enum UserRole {
   Support = 'support',
   User = 'user',
   Approver = 'approver',
+  Contractor = 'contractor', 
   // Add roles as needed
 }
 
@@ -37,6 +38,11 @@ export enum Permission {
   READ_SETTINGS = 'read_settings',
   EDIT_SETTINGS = 'edit_settings',
   // Add other permissions as needed
+
+  // Contractor-specific permissions
+  VIEW_CONTRACTS = 'view_contracts',
+  SIGN_CONTRACTS = 'sign_contracts',
+  VIEW_RESOURCES = 'view_resources',
 }
 
 // New OnboardingStep Enum

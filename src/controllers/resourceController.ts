@@ -46,8 +46,6 @@ export const createResourceHandler = async (req: Request, res: Response, next: N
   }
 };
 
-
-// Acknowledge Resource
 export const acknowledgeResourceHandler = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
@@ -55,13 +53,38 @@ export const acknowledgeResourceHandler = async (req: Request, res: Response) =>
       return;
     }
 
-    const { resourceId } = req.params;
-    await acknowledgeResource(req.user._id.toString(), resourceId);
-    res.status(200).json({ message: 'Acknowledgment recorded successfully.' });
+    const { resourceId, signature } = req.body;
+
+    if (
+      !resourceId ||
+      !signature ||
+      typeof signature.text !== 'string' ||
+      typeof signature.font !== 'string' ||
+      typeof signature.size !== 'string' ||
+      typeof signature.color !== 'string'
+    ) {
+      res.status(400).json({
+        message: 'Resource ID, signature text, font, size, and color are required.',
+      });
+      return;
+    }
+
+    console.log('Acknowledging resource:', resourceId);
+    console.log('Signature:', signature);
+
+    const acknowledgment = await acknowledgeResource(req.user._id.toString(), resourceId, signature);
+
+    res.status(200).json({
+      message: 'Acknowledgment recorded successfully.',
+      acknowledgment,
+    });
   } catch (err) {
+    console.error('Error in acknowledgeResourceHandler:', err);
     res.status(400).json({ message: 'Cannot acknowledge resource' });
   }
 };
+
+
 
 
 // Send Resource to User
@@ -115,9 +138,6 @@ export const sendResourceToUserHandler = async (req: Request, res: Response) => 
     return;
   }
 };
-
-
-  
 
 // Handler to Get Resources
 export const getResourcesHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -207,17 +227,14 @@ export const deleteResourceHandler = async (req: Request, res: Response, next: N
     next(error);
   }
 };
-
-
 export const getUserResourcesHandler = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?._id;
-    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-      res.status(400).json({ message: 'Invalid User ID.' });
+    if (!req.user || !mongoose.Types.ObjectId.isValid(req.user._id)) {
+      res.status(400).json({ message: 'Invalid or missing User ID.' });
       return;
     }
 
-    const resources = await getUserResources(userId.toString());
+    const resources = await getUserResources(req.user._id.toString());
 
     if (!resources.length) {
       res.status(404).json({ message: 'No resources found for this user.' });
@@ -225,8 +242,10 @@ export const getUserResourcesHandler = async (req: Request, res: Response) => {
     }
 
     res.status(200).json(resources);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching user resources:', error);
     res.status(500).json({ message: 'Failed to fetch user resources.' });
   }
 };
+
+
