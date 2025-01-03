@@ -64,8 +64,6 @@ interface UpdatePasswordInput {
 
 // Update user profile details
 export const updateProfile = async (user: IUser, input: UpdateProfileInput): Promise<IUser> => {
-  console.log('Initial user data:', user);
-  console.log('Update input:', input);
 
   const { 
     name, 
@@ -90,8 +88,6 @@ export const updateProfile = async (user: IUser, input: UpdateProfileInput): Pro
       console.log(`Conflict: Email ${email} already in use by user with ID ${existingUser._id}`);
       throw { status: 400, message: 'Email already in use' };
     }
-
-    console.log('Email is available. Proceeding to update email and set status to Pending');
     user.email = email;
     user.status = UserStatus.Pending; // Email change requires re-verification
 
@@ -122,9 +118,7 @@ export const updateProfile = async (user: IUser, input: UpdateProfileInput): Pro
   if (date_of_birth) user.date_of_birth = date_of_birth;
   if (employment_type) user.employment_type = employment_type;
 
-  console.log('Saving updated user data...');
   await user.save();
-  console.log('User updated successfully:', user);
 
   return user;
 };
@@ -181,6 +175,15 @@ export const getEmployees = async () => {
     .select('_id name employee_id') 
     .lean(); // Improve performance by skipping full document hydration
 };
+
+//Get user by Id 
+export const getUserById = async (userId: mongoose.Types.ObjectId): Promise<IUser> => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw { status: 404, message: 'User not found.' };
+  }
+  return user;
+}
 
 
 export const acknowledgePolicy = async (userId: mongoose.Types.ObjectId, resourceId: mongoose.Types.ObjectId): Promise<IUser> => {

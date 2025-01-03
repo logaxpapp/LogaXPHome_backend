@@ -5,6 +5,7 @@ import {
   editProfile,
   changePassword,
   deleteAccountRequest,
+  getUserByIdHandler,
 } from '../controllers/profileController';
 import { acknowledgeResourceHandler } from '../controllers/resourceController';
 import { body } from 'express-validator';
@@ -18,6 +19,8 @@ router.use(authenticateJWT);
 
 // GET /api/profile
 router.get('/', viewProfile);
+
+
 
 // Acknowledge policy
 router.post('/acknowledge-policy', acknowledgeResourceHandler);

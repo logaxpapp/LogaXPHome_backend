@@ -1,11 +1,48 @@
+// src/services/paymentService.ts
+
 import Payment, { IPayment } from '../models/Payment';
 import { Types } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
+import {
+  fetchExchangeRates,
+  convertCurrency,
+} from './currencyService';
 
+
+
+// 1) Build a narrower type for editable fields
+type EditablePaymentFields = Pick<IPayment, 'amount' | 'currency' | 'notes'>;
+type EditablePaymentUpdate = Partial<EditablePaymentFields>;
 /**
  * Create a payment record (usually by an Admin).
+ * Includes handling currency and exchange rates.
  */
 export const createPayment = async (data: Omit<IPayment, 'createdAt' | 'updatedAt'>) => {
-  const payment = new Payment(data);
+  // Optionally, convert amount to base currency (e.g., USD)
+  const baseCurrency = 'USD'; // Define your base currency
+  let exchangeRate: number | undefined = undefined;
+
+  if (data.currency !== baseCurrency) {
+    try {
+      // Fetch exchange rate from the specified currency to base currency
+      const rates = await fetchExchangeRates(data.currency);
+      exchangeRate = rates[baseCurrency];
+      if (!exchangeRate) {
+        throw new Error(`Exchange rate not found for ${baseCurrency}`);
+      }
+      // Optionally, you can store amount in base currency as well
+      // data.amountBase = data.amount * exchangeRate;
+    } catch (error) {
+      console.error('Error fetching exchange rate:', error);
+      throw error;
+    }
+  }
+
+  const payment = new Payment({
+    ...data,
+    exchangeRate,
+  });
+
   return await payment.save();
 };
 
@@ -23,7 +60,7 @@ export const getPaymentsByContract = async (contractId: string) => {
 export const confirmPayment = async (paymentId: string) => {
   const payment = await Payment.findById(paymentId);
   if (!payment) throw new Error('Payment not found');
-  
+
   payment.status = 'Confirmed';
   await payment.save();
   return payment;
@@ -35,7 +72,7 @@ export const confirmPayment = async (paymentId: string) => {
 export const declinePayment = async (paymentId: string, notes: string) => {
   const payment = await Payment.findById(paymentId);
   if (!payment) throw new Error('Payment not found');
-  
+
   payment.status = 'Declined';
   payment.notes = notes || '';
   await payment.save();
@@ -43,16 +80,21 @@ export const declinePayment = async (paymentId: string, notes: string) => {
 };
 
 /**
- * Contractor acknowledges they have received / seen the payment.
+ * Contractor acknowledges they have received/seen the payment.
  */
 export const acknowledgePayment = async (paymentId: string) => {
   const payment = await Payment.findById(paymentId);
   if (!payment) throw new Error('Payment not found');
-  
-  payment.acknowledgment = true;
+
+  if (payment.status === 'AwaitingAcknowledgment') {
+    payment.status = 'AcceptedByContractor'; // Transition to next status
+  }
+  payment.acknowledgment = true; // Mark payment as acknowledged
   await payment.save();
+
   return payment;
 };
+
 
 /**
  * Compute total paid to date for a given contract.
@@ -67,28 +109,87 @@ export const getTotalPaidForContract = async (contractId: string) => {
   return totalPaid;
 };
 
+/**
+ * Contractor accepts the payment (NEW).
+ */
 export const acceptPaymentByContractor = async (paymentId: string) => {
-    const payment = await Payment.findById(paymentId);
-    if (!payment) {
-      throw new Error('Payment not found');
+  const payment = await Payment.findById(paymentId);
+  if (!payment) {
+    throw new Error('Payment not found');
+  }
+
+  // Update status based on business logic
+  payment.status = 'AcceptedByContractor'; // or 'Confirmed'
+  await payment.save();
+  return payment;
+};
+
+/**
+ * Contractor declines the payment (NEW).
+ */
+export const declinePaymentByContractor = async (paymentId: string, reason?: string) => {
+  const payment = await Payment.findById(paymentId);
+  if (!payment) {
+    throw new Error('Payment not found');
+  }
+
+  payment.status = 'DeclinedByContractor'; // or 'Declined'
+  if (reason) {
+    payment.notes = reason;
+  }
+  await payment.save();
+  return payment;
+};
+
+/**
+ * Send a payment (Admin action) to set status to 'AwaitingAcknowledgment'.
+ */
+export const sendPayment = async (paymentId: string) => {
+  const payment = await Payment.findById(paymentId);
+  if (!payment) throw new Error('Payment not found');
+
+  if (payment.status !== 'Pending') {
+    throw new Error('Only pending payments can be sent');
+  }
+
+  payment.status = 'AwaitingAcknowledgment';
+  await payment.save();
+  return payment;
+};
+
+/**
+ * Delete a payment.
+ */
+export const deletePayment = async (paymentId: string) => {
+  const payment = await Payment.findById(paymentId);
+  if (!payment) {
+    throw new Error('Payment not found');
+  }
+
+  await Payment.findByIdAndDelete(paymentId);
+  return { message: 'Payment deleted successfully' };
+};
+
+export const editPayment = async (
+  paymentId: string,
+  updateData: Partial<EditablePaymentFields>
+): Promise<HydratedDocument<IPayment>> => {
+  const payment = await Payment.findById(paymentId);
+  if (!payment) throw new Error('Payment not found');
+
+  if (payment.status === 'Confirmed') {
+    throw new Error('Cannot edit a confirmed payment');
+  }
+
+  // Use a single cast to `any` (or to a typed dictionary):
+  const doc = payment as any; // or as unknown as Record<string, unknown>
+
+  for (const key of ['amount', 'currency', 'notes'] as const) {
+    if (updateData[key] !== undefined) {
+      doc[key] = updateData[key];
     }
-  
-    // For example, mark the payment status as "Confirmed" or "AcceptedByContractor"
-    payment.status = 'AcceptedByContractor'; // or 'Confirmed' if that suits your business rules
-    await payment.save();
-    return payment;
-  };
-  
-  export const declinePaymentByContractor = async (paymentId: string, reason?: string) => {
-    const payment = await Payment.findById(paymentId);
-    if (!payment) {
-      throw new Error('Payment not found');
-    }
-  
-    payment.status = 'DeclinedByContractor'; // or just 'Declined' if that's acceptable
-    if (reason) {
-      payment.notes = reason;
-    }
-    await payment.save();
-    return payment;
-  };
+  }
+
+  await payment.save();
+  return payment;
+};

@@ -1,3 +1,4 @@
+
 // src/controllers/profileController.ts
 import { Request, Response, NextFunction } from 'express';
 import { UserStatus } from '../types/enums';
@@ -8,8 +9,13 @@ import {
   requestAccountDeletion,
   getEmployees,
   acknowledgePolicy,
+  getUserById,
 } from '../services/userService';
 import User from '../models/User';
+import mongoose from 'mongoose';
+
+
+
 export const viewProfile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const profile = await getProfile(req.user!);
@@ -127,4 +133,26 @@ export const acknowledgePolicyHandler = async (req: Request, res: Response, next
     next(error);
   }
 }
+
+export const getUserByIdHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params; // Use 'id' instead of 'userId'
+
+    console.log(`Received ID: ${id}`);
+
+    // Validate and convert id to ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ message: 'Invalid user ID.' });
+      return;
+    }
+
+    const user = await getUserById(new mongoose.Types.ObjectId(id));
+
+    res.status(200).json(user);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+
 

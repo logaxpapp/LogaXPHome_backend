@@ -1,3 +1,5 @@
+// src/routes/paymentRoutes.ts
+
 import express from 'express';
 import * as paymentController from '../controllers/paymentController';
 import { authenticateJWT } from '../middlewares/authMiddleware';
@@ -38,7 +40,7 @@ router.put(
 );
 
 /**
- * Contractor acknowledges the payment (existing).
+ * Contractor acknowledges the payment.
  */
 router.put(
   '/:paymentId/acknowledge',
@@ -47,13 +49,17 @@ router.put(
 );
 
 /**
- * Contractor accept / decline payment (NEW).
+ * Contractor accepts the payment.
  */
 router.put(
   '/:paymentId/contractorAccept',
   authorizeRoles(UserRole.Contractor),
   paymentController.acceptPaymentByContractor
 );
+
+/**
+ * Contractor declines the payment.
+ */
 router.put(
   '/:paymentId/contractorDecline',
   authorizeRoles(UserRole.Contractor),
@@ -67,6 +73,34 @@ router.get(
   '/summary/:contractId',
   authorizeRoles(UserRole.Admin, UserRole.Contractor),
   paymentController.getContractPaymentSummary
+);
+
+/**
+ * Send a payment reminder to the contractor.
+ * (Admin only)
+ */
+router.put(
+  '/:paymentId/send',
+  authorizeRoles(UserRole.Admin),
+  paymentController.sendPayment
+);
+
+/**
+ * Delete a payment (Admin only).
+ */
+router.delete(
+  '/:paymentId',
+  authorizeRoles(UserRole.Admin),
+  paymentController.deletePayment
+);
+
+/**
+ * Edit a payment's details (Admin only).
+ */
+router.put(
+  '/:paymentId',
+  authorizeRoles(UserRole.Admin),
+  paymentController.editPayment
 );
 
 export default router;

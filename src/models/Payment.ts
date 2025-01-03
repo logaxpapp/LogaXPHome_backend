@@ -1,46 +1,60 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, HydratedDocument } from 'mongoose';
 
-// src/models/Payment.ts (or wherever your IPayment is defined)
 export interface IPayment extends Document {
-    contract: mongoose.Types.ObjectId; // Reference to Contract
-    contractor: mongoose.Types.ObjectId; // Reference to User (role: contractor)
-    amount: number; // Payment amount
-    date: Date; // Payment date
-    // Extend your status union to include new strings
-    status:
-      | 'Pending'
-      | 'Confirmed'
-      | 'Declined'
-      | 'AcceptedByContractor'
-      | 'DeclinedByContractor';
-    acknowledgment: boolean; // Whether contractor acknowledges the payment
-    notes?: string;
-    createdAt: Date;
-    updatedAt: Date;
-  }
-  
-  const PaymentSchema = new Schema<IPayment>(
-    {
-      contract: { type: Schema.Types.ObjectId, ref: 'Contract', required: true },
-      contractor: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-      amount: { type: Number, required: true },
-      date: { type: Date, default: Date.now },
-      status: {
-        type: String,
-        enum: [
-          'Pending',
-          'Confirmed',
-          'Declined',
-          'AcceptedByContractor',
-          'DeclinedByContractor',
-        ],
-        default: 'Pending',
-      },
-      acknowledgment: { type: Boolean, default: false },
-      notes: { type: String, default: '' },
+  contract: mongoose.Types.ObjectId;
+  contractor: mongoose.Types.ObjectId;
+  amount: number;
+  currency: string;
+  exchangeRate?: number;
+  date: Date;
+  status:
+    | 'Pending'
+    | 'Confirmed'
+    | 'Declined'
+    | 'AcceptedByContractor'
+    | 'DeclinedByContractor'
+    | 'AwaitingAcknowledgment'
+    | 'AwaitingConfirmation';
+
+  acknowledgment: boolean;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const PaymentSchema = new Schema<IPayment>(
+  {
+    contract: { type: Schema.Types.ObjectId, ref: 'Contract', required: true },
+    contractor: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    amount: { type: Number, required: true },
+    currency: {
+      type: String,
+      enum: ['USD', 'EUR', 'GBP', 'NGN', 'JPY', 'CNY'],
+      default: 'USD',
+      required: true,
     },
-    { timestamps: true }
-  );
-  
-  export default mongoose.model<IPayment>('Payment', PaymentSchema);
-  
+    exchangeRate: Number,
+    date: { type: Date, default: Date.now },
+    status: {
+      type: String,
+      enum: [
+        'Pending',
+        'Confirmed',
+        'Declined',
+        'AcceptedByContractor',
+        'DeclinedByContractor',
+        'AwaitingAcknowledgment',
+        'AwaitingConfirmation',
+      ],
+      default: 'Pending',
+    },
+    acknowledgment: { type: Boolean, default: false },
+    notes: { type: String, default: '' },
+  },
+  { timestamps: true }
+);
+
+// In Mongoose 7+, you can define Payment as:
+const Payment = mongoose.model<IPayment>('Payment', PaymentSchema);
+
+export default Payment;

@@ -11,7 +11,7 @@ import {
 
 } from '../controllers/adminController';
 import { register } from '../controllers/authController';
-import { acknowledgePolicyHandler } from '../controllers/profileController';
+import { getUserByIdHandler } from '../controllers/profileController';
 import { authenticateJWT } from '../middlewares/authMiddleware';
 
 
@@ -27,6 +27,8 @@ router.use(authenticateJWT);
  */
 router.get('/employees', fetchEmployees);
 router.get('/', getAllUsersHandler);
+// Get user by ID
+router.get('/details/:id', getUserByIdHandler);
 router.get('/:id', editUserProfileHandler);
 router.put('/:id', resetUserPasswordHandler);
 

@@ -4,6 +4,7 @@ import mongoose, { Document, Schema, Model } from 'mongoose';
 import bcrypt from 'bcrypt';
 import { UserRole, UserStatus, Application, OnboardingStep, OnlineStatus } from '../types/enums';
 import Session from './Session';
+import Team, { ITeam } from './Team';
 
 // Address Subdocument Interface
 export interface IAddress {
@@ -30,6 +31,8 @@ export interface IUser extends Document {
   comparePassword(candidatePassword: string): Promise<boolean>;
   isPasswordReused(newPassword: string): Promise<boolean>;
   role: UserRole;
+  teamsManaged?: mongoose.Types.ObjectId[];
+  teams?: mongoose.Types.ObjectId[]; 
   status: UserStatus;
   applications_managed?: Application[];
   job_title?: string;
@@ -96,6 +99,8 @@ const UserSchema: Schema<IUser> = new Schema(
       },
     ],
     role: { type: String, enum: Object.values(UserRole), required: true, default: UserRole.User },
+    teamsManaged: [{ type: Schema.Types.ObjectId, ref: 'Team' }],
+    teams: [{ type: Schema.Types.ObjectId, ref: 'Team' }],
     status: { type: String, enum: Object.values(UserStatus), default: UserStatus.Pending },
     onlineStatus: { type: String, enum: Object.values(OnlineStatus), default: OnlineStatus.Offline },
     applications_managed: [{ type: String, enum: Object.values(Application), trim: true }],

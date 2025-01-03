@@ -38,6 +38,18 @@ import newsletterRoutes from './newsletterRoutes';
 import newslettersRoutes from './newslettersRoutes';
 import contractRoute from './contractsRoutes';
 import paymentRoutes from './paymentRoutes';
+import currencyRoutes from './currencyRoutes';
+import TeamRoutes from './teamRoutes';
+import SubContractorRoutes from './subContractorRoutes';
+import boardRoutes from '../routes/Task/boardRoutes';
+import listRoutes from '../routes/Task/listRoutes';
+import cardRoutes from '../routes/Task/cardRoutes';
+import commentRoutes from '../routes/Task/commentRoutes';
+import labelRoutes from '../routes/Task/labelRoutes';
+import attachmentRoutes from '../routes/Task/attachmentRoutes';
+import activityRoutes from '../routes/Task/activityRoutes';
+import boardMembershipRoutes from '../routes/Task/boardMembershipRoutes';
+import documentRoutes from './documentRoutes';
 const router = Router();
 
 // Unprotected Routes
@@ -85,5 +97,19 @@ router.use('/newsletter', newsletterRoutes);
 router.use('/newsletters', newslettersRoutes);
 router.use('/contracts', contractRoute);
 router.use('/payments', paymentRoutes);
+router.use('/currency', currencyRoutes);
+router.use('/teams', TeamRoutes);
+router.use('/subcontractors', SubContractorRoutes);
+router.use('/boards', boardRoutes);
+router.use('/lists', listRoutes);
+router.use('/cards', cardRoutes);
+router.use('/comments', commentRoutes);
+router.use('/labels', labelRoutes);
+router.use('/attachments', attachmentRoutes);
+router.use('/activities', activityRoutes);
+router.use('/board-memberships', boardMembershipRoutes);
+router.use('/documents', documentRoutes);
+
+
 
 export default router;

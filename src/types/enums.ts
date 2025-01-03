@@ -13,9 +13,11 @@ export enum UserRole {
   Support = 'support',
   User = 'user',
   Approver = 'approver',
-  Contractor = 'contractor', 
-  // Add roles as needed
+  Contractor = 'contractor',
+  SubContractor = 'subContractor', // NEW ROLE
+ 
 }
+
 
 export enum UserStatus {
   Pending = 'Pending',
@@ -61,3 +63,28 @@ export enum OnlineStatus {
   Busy = 'busy',
   Away = 'away',
 }
+
+
+export enum ActivityType {
+  Created = 'Created',
+  Updated = 'Updated',
+  Deleted = 'Deleted',
+  Commented = 'Commented',
+  Moved = 'Moved',
+  // Extend as needed
+}
+
+export enum CardStatus {
+  ToDo = 'To Do',
+  InProgress = 'In Progress',
+  Done = 'Done',
+}
+
+export enum LabelColor {
+  Red = '#FF0000',
+  Green = '#00FF00',
+  Blue = '#0000FF',
+  Yellow = '#FFFF00',
+  // Add more colors as needed
+}
+

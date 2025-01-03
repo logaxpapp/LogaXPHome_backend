@@ -1,28 +1,50 @@
 import Contract from '../models/Contract';
 import { IContract } from '../models/Contract';
 
-export const createContract = async (data: IContract) => {
+
+/**
+ * Create a contract
+ */
+export const createContract = async (data: Partial<IContract>) => {
   const contract = new Contract(data);
-  return await contract.save();
+  return contract.save();
 };
 
+/**
+ * Get all contracts
+ */
 export const getAllContracts = async () => {
-  return await Contract.find().populate('contractor admin');
+  return Contract.find().populate('contractor admin');
 };
 
+/**
+ * Get contract by ID
+ */
 export const getContractById = async (id: string) => {
-  return await Contract.findById(id).populate('contractor admin');
+  return Contract.findById(id).populate('contractor admin');
 };
 
+/**
+ * Update contract by ID
+ */
 export const updateContract = async (id: string, updates: Partial<IContract>) => {
-  return await Contract.findByIdAndUpdate(id, updates, { new: true });
+  return Contract.findByIdAndUpdate(
+    id,
+    { $set: updates }, // Explicitly use $set for updates
+    { new: true, runValidators: true } // Return updated document and validate against schema
+  );
 };
 
+/**
+ * Delete contract by ID
+ */
 export const deleteContract = async (id: string) => {
-  return await Contract.findByIdAndDelete(id);
+  return Contract.findByIdAndDelete(id);
 };
 
+/**
+ * Get contracts by contractor
+ */
 export const getContractsByContractor = async (contractorId: string) => {
-  return await Contract.find({ contractor: contractorId })
-    .populate('contractor admin');
+  return Contract.find({ contractor: contractorId }).populate('contractor admin');
 };
