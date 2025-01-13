@@ -5,18 +5,22 @@ import dotenv from 'dotenv';
 import { EmailOptions } from '../types/email'; // Importing the interface
 import { IUser } from '../models/User'; // Importing the IUser interface
 import { IShift } from '../models/Shift';
+import { IReference } from '../models/Reference';
+import { IReferee } from '../models/Referee';
 import { NOTIFICATION_DAYS_BEFORE } from '../config/constants';
 
 dotenv.config();
 
 // Configure nodemailer transport
 const transporter = nodemailer.createTransport({
-  service: 'Gmail',
+  host: 'email-smtp.us-east-1.amazonaws.com', // or another region's endpoint
+  port: 465,         // or 587
+  secure: true,      // true for port 465, false for 587 (STARTTLS)
   auth: {
-    user: process.env.EMAIL_USER, // Your Gmail address
-    pass: process.env.EMAIL_PASS, // Your Gmail password or App Password
+    user: process.env.EMAIL_USER,  // e.g. AKIA4MTWGW2DYKBBCAN5
+    pass: process.env.EMAIL_PASS,  // e.g. BCYB5Pk-----------
   },
-  connectionTimeout: 30000, // Increase timeout to 30 seconds
+  connectionTimeout: 30000, // 30 seconds
 });
 
 
@@ -338,25 +342,188 @@ export const sendNewsletterEmail = async (
   await sendEmail(mailOptions);
 };
 
-export const sendEmailChangeMail = async (options: EmailOptions): Promise<void> => {
+export async function sendReferenceEmail(reference: IReference): Promise<void> {
+  // Because we populated 'referee' and 'applicant', we can safely cast them:
+  const referee = reference.referee as IReferee;
+  const applicant = reference.applicant as { name: string; email?: string };
+
+  // Log some details to confirm we have the data
+  console.log('sendReferenceEmail -> referee.email:', referee.email);
+  console.log('sendReferenceEmail -> referee.name:', referee.name);
+  console.log('sendReferenceEmail -> applicant.name:', applicant.name);
+  console.log('sendReferenceEmail -> reference.token:', reference.token);
+
+  // If any required fields are missing, throw
+  if (!referee.email || !referee.name || !applicant.name) {
+    console.error('sendReferenceEmail -> Missing fields:', {
+      refereeEmail: referee.email,
+      refereeName: referee.name,
+      applicantName: applicant.name,
+    });
+    throw new Error('Required fields for email are missing.');
+  }
+
+  // Construct the link to the public form:
+  const referenceLink = `${process.env.FRONTEND_URL}/fill-reference?token=${reference.token}`;
+  console.log('sendReferenceEmail -> referenceLink:', referenceLink);
+
+  // Configure nodemailer transport
+  const transporter = nodemailer.createTransport({
+    service: 'Gmail', // or an alternative email service
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  // Compose your email
   const mailOptions = {
-    from: process.env.EMAIL_FROM || process.env.EMAIL_USER, // Sender address
-    to: options.to,                                         // Recipient address
-    subject: options.subject,                               // Subject line
-    text: options.text,                                     // Plain text body
-    html: options.html,                                     // HTML body
+    from: process.env.EMAIL_USER,
+    to: referee.email, // might be an array if multiple recipients
+    subject: 'Employment Reference Request',
+    html: `
+      <p>Dear ${referee.name},</p>
+      <p>${applicant.name} has requested an employment reference from you.</p>
+      <p>Please fill out the reference form by clicking the link below:</p>
+      <a href="${referenceLink}">Fill Reference Form</a>
+      <p>This link will expire in 7 days.</p>
+      <p>Thank you!</p>
+    `,
   };
 
+  // Attempt to send
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Email sent to ${options.to} with subject "${options.subject}"`);
-  } catch (error: any) {
-    console.error(`Failed to send email to ${options.to}:`, {
-      error: error.message || error,
-      stack: error.stack,
-      subject: options.subject,
-    });
-    // Do NOT throw the error to prevent it from affecting main operations
-    // Optionally, log this incident to a monitoring service or database
+    const info = await transporter.sendMail(mailOptions);
+    console.log('sendReferenceEmail -> Email sent successfully:', info);
+  } catch (err) {
+    console.error('sendReferenceEmail -> Error sending email:', err);
+    throw err; // rethrow if you want the caller to see the error
   }
+}
+
+
+export const sendReferenceConfirmationEmail = async (to: string, token: string): Promise<void> => {
+  const transporter = nodemailer.createTransport({
+    service: 'Gmail', // Use any email service provider
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  const confirmationLink = `${process.env.FRONTEND_URL}/confirm-reference?token=${token}`;
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to,
+    subject: 'Reference Submission Confirmation',
+    html: `
+      <p>Dear User,</p>
+      <p>Thank you for completing the reference form.</p>
+      <p>You can view the confirmation by clicking the link below:</p>
+      <a href="${confirmationLink}">View Confirmation</a>
+      <p>Thank you!</p>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
+// Define the shape of the mail options
+interface EmailChangeMailOptions {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}
+
+/**
+ * Sends an email regarding a profile change (approval/rejection).
+ * Adapt transporter config for your environment/service (Gmail, SMTP, etc.)
+ */
+export const sendEmailChangeMail = async ({
+  to,
+  subject,
+  text,
+  html,
+}: EmailChangeMailOptions): Promise<void> => {
+  try {
+    // 1) Create a transporter. 
+    // In production, you might use env variables or a mail service (SendGrid, AWS SES, etc.)
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.example.com',       // e.g. 'smtp.gmail.com'
+      port: 587,                      // or 465 for SSL
+      secure: false,                  // true if using 465
+      auth: {
+        user: 'your_email@example.com',
+        pass: 'your_email_password',
+      },
+    });
+
+    // 2) Define mail options
+    const mailOptions = {
+      from: '"Admin Team" <no-reply@example.com>', // Adjust "from" address
+      to,
+      subject,
+      text,
+      html,
+    };
+
+    // 3) Send mail
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log(`Email sent to ${to}, Info:`, info.messageId);
+  } catch (error) {
+    console.error('Error sending change-request email:', error);
+    throw error; // Re-throw so the caller can handle it
+  }
+};
+
+
+
+/**
+ * Sends a board invitation email, allowing a new or existing user to accept and join the board.
+ * @param to - The invitee's email address
+ * @param token - A unique invite token (generated by your invitation service)
+ * @param boardName - Optionally include the board name in the email for clarity
+ */
+export const sendBoardInvitationEmail = async (
+  to: string,
+  token: string,
+  boardName: string = 'your board'
+): Promise<void> => {
+  // e.g., http://localhost:5173/invite/accept?token=abc123
+  const inviteLink = `${process.env.FRONTEND_URL}/invite/accept?token=${encodeURIComponent(token)}`;
+
+  // Example subject and message
+  const subject = `You’ve been invited to join ${boardName}`;
+  const text = `Hello,
+  
+You have been invited to join the board "${boardName}". Please accept the invitation by clicking the link below:
+${inviteLink}
+
+If you did not request this invitation, you can safely ignore this email.
+
+Best regards,
+Support Team
+`;
+
+  const html = `
+    <p>Hello,</p>
+    <p>You have been invited to join the board "<strong>${boardName}</strong>". Please accept the invitation by clicking the link below:</p>
+    <p><a href="${inviteLink}">${inviteLink}</a></p>
+    <p>If you did not request this invitation, you can safely ignore this email.</p>
+    <p>Best regards,<br/>Support Team</p>
+  `;
+
+  // Now assemble the EmailOptions as in your other functions
+  const options = {
+    to,
+    subject,
+    text,
+    html,
+  };
+
+  await sendEmail(options);
+  console.log(`Board invitation email sent to ${to} for board: ${boardName}`);
 };

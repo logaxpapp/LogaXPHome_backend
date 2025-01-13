@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid'; // Import UUID
  * Sub-Task Interface
  */
 export interface ISubTask {
-  id: string; // Unique identifier
+  id?: string; // Unique identifier
   title: string;
   completed: boolean;
   dueDate?: Date;
@@ -33,21 +33,32 @@ export interface ICustomField {
     key: string;
     value: string;
   }
+
+  interface IStatusHistory {
+    status: string;
+    from: Date;
+    to: Date;
+  }
   
 
 /**
  * Card (Task) Interface
  */
 export interface ICard extends Document {
+  _id: mongoose.Types.ObjectId | string; 
   title: string;
   description?: string;
   list: mongoose.Types.ObjectId;
   assignees: mongoose.Types.ObjectId[];
   labels: mongoose.Types.ObjectId[];
-  dueDate?: Date;
   attachments: mongoose.Types.ObjectId[];
   comments: mongoose.Types.ObjectId[];
   position: number;
+  startDate?: Date;   // <--- Distinct from createdAt
+  dueDate?: Date;     // already present, used for end date
+  progress?: number;  // 0 to 100
+  dependencies?: string[];
+  statusHistory?: IStatusHistory[];
 
   // Sub-Documents with IDs
   subTasks?: ISubTask[];
@@ -105,6 +116,18 @@ const CustomFieldSchema: Schema<ICustomField> = new Schema(
 );
 
 /**
+ * Status History Subschema
+ */
+const StatusHistorySchema = new Schema<IStatusHistory>(
+  {
+    status: { type: String, required: true },
+    from: { type: Date, required: true },
+    to: { type: Date, required: true },
+  },
+  { _id: false }
+);
+
+/**
  * Card Schema
  */
 const CardSchema: Schema<ICard> = new Schema(
@@ -114,15 +137,19 @@ const CardSchema: Schema<ICard> = new Schema(
     list: { type: mongoose.Schema.Types.ObjectId, ref: 'List', required: true },
     assignees: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     labels: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Label' }],
+    startDate: { type: Date },
     dueDate: { type: Date },
     attachments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Attachment' }],
     comments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
     position: { type: Number, default: 0 },
+    progress: { type: Number, default: 0 },
+    dependencies: [{ type: String }],
 
     // Subdocument arrays
     subTasks: [SubTaskSchema],
     timeLogs: [TimeLogSchema],
     customFields: [CustomFieldSchema],
+    statusHistory: [StatusHistorySchema],
 
     // Additional Fields
     status: { type: String, default: 'Backlog' }, // Default status

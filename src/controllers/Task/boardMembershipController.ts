@@ -1,12 +1,16 @@
 // /src/controllers/Task/boardMembershipController.ts
 
 import { Request, Response, NextFunction } from 'express';
-import { addMemberToBoard, removeMemberFromBoard, getBoardMembers } from '../../services/Task/boardMembershipService';
+import { addMemberToBoard, removeMemberFromBoard, getBoardMembers, removeBoardTeam, setBoardTeam } from '../../services/Task/boardMembershipService';
 import { IUser } from '../../models/User';
 import mongoose from 'mongoose';
 
 interface AuthenticatedRequest extends Request {
   user?: IUser;
+}
+
+interface AuthRequest extends Request {
+  user?: IUser; // from your JWT auth
 }
 
 /**
@@ -101,5 +105,61 @@ export const getBoardMembersHandler = async (
     return;
   } catch (error: any) {
     next(error);
+  }
+};
+
+
+export const setBoardTeamHandler = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { boardId } = req.params;
+    const { teamId, syncMembers } = req.body; // e.g. { teamId: '...', syncMembers: true }
+
+    if (!req.user) {
+       res.status(401).json({ message: 'Unauthorized: Not logged in' });
+        return;
+    }
+
+    const updatedBoard = await setBoardTeam(
+      boardId,
+      teamId,
+      req.user,
+      syncMembers !== false // default true
+    );
+
+     res.status(200).json(updatedBoard);
+      return;
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const removeBoardTeamHandler = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { boardId } = req.params;
+    const { clearMembers } = req.body; // e.g. { clearMembers: true }
+
+    if (!req.user) {
+       res.status(401).json({ message: 'Unauthorized: Not logged in' });
+        return;
+    }
+
+    const updatedBoard = await removeBoardTeam(
+      boardId,
+      req.user,
+      clearMembers !== false // default true
+    );
+
+     res.status(200).json(updatedBoard);
+      return;
+  } catch (err) {
+    next(err);
   }
 };

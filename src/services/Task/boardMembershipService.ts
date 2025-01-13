@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import Board, { IBoard, IBoardPopulated } from '../../models/Task/Board';
 import Team, { ITeam, ITeamMember } from '../../models/Team';
 import { IUser } from '../../models/User';
-
+import { UserRole } from '../../types/enums';
 /**
  * Add a user to a board, ensuring they belong to the team
  * @param boardId - The board's ID
@@ -112,27 +112,145 @@ export const removeMemberFromBoard = async (
 
   return board;
 };
-
+/**
+ * Return the board members if the current user is authorized:
+ * - board owner
+ * - admin
+ * - already in the board
+ * - or a team leader of the board's team
+ */
 export const getBoardMembers = async (
-    boardId: string,
-    currentUser: IUser
-  ): Promise<IUser[]> => {
-    const boardDoc = await Board.findById(boardId)
-      .populate('members', 'name email role')
-      .populate('team')
-      .lean<IBoardPopulated>(); // <-- Return a plain object typed as IBoardPopulated
-  
-    if (!boardDoc) {
-      throw new Error('Board not found');
+  boardId: string,
+  currentUser: IUser
+): Promise<IUser[]> => {
+  // 1) Fetch the board, populating members & team
+  const boardDoc = await Board.findById(boardId)
+    .populate('members', 'name email role') // user fields to return
+    .populate('team')                      // we might need to check team leadership
+    .lean<IBoardPopulated>();             // returns a plain JS object
+
+  if (!boardDoc) {
+    throw new Error('Board not found');
+  }
+
+  // 2) Check if the current user is:
+  //    (A) The board owner,
+  //    (B) An admin user,
+  //    (C) Already a board member,
+  //    (D) A leader in the team.
+
+  // (A) Board owner
+  const isOwner = boardDoc.owner.toString() === currentUser._id.toString();
+
+  // (B) Admin user
+  const isAdmin = currentUser.role === UserRole.Admin;
+
+  // (C) Already a board member
+  const inBoard = boardDoc.members.some(
+    (m) => m._id.toString() === currentUser._id.toString()
+  );
+
+  // (D) Team leader check
+  let isTeamLeader = false;
+  // Check if boardDoc.team is an actual object (not just an ObjectId).
+  if (boardDoc.team && typeof boardDoc.team === 'object') {
+    const teamDoc = boardDoc.team as ITeam; // cast to ITeam
+    if (teamDoc.members && Array.isArray(teamDoc.members)) {
+      isTeamLeader = teamDoc.members.some((member) => {
+        return (
+          member.user.toString() === currentUser._id.toString() &&
+          member.role === 'Leader'
+        );
+      });
     }
-  
-    // boardDoc is typed as IBoardPopulated, so `members` is IUser[]
-    const inBoard = boardDoc.members.some(
-      (m) => m._id.toString() === currentUser._id.toString()
+  }
+
+  // 3) If current user is none of the above => deny access
+  if (!isOwner && !isAdmin && !inBoard && !isTeamLeader) {
+    throw new Error(
+      'Access denied: Must be board owner, admin, team leader, or a board member'
     );
-    if (!inBoard) {
-      throw new Error('Access denied: not a board member');
-    }
-  
-    return boardDoc.members; // perfectly typed as IUser[]
-  };
+  }
+
+  // 4) Return the list of board members
+  return boardDoc.members;
+};
+  // EXAMPLE: setBoardTeam
+//  - boardId: which board to update
+//  - teamId: which team to attach
+//  - currentUser: user performing the action
+//  - optionally: syncMembers => if true, we copy the team's members to the board.members
+export const setBoardTeam = async (
+  boardId: string,
+  teamId: string,
+  currentUser: IUser,
+  syncMembers: boolean = true,
+): Promise<IBoard> => {
+  // 1. Find board
+  const board = await Board.findById(boardId);
+  if (!board) {
+    throw new Error('Board not found');
+  }
+
+  // 2. Check if currentUser is board owner or admin
+  const isOwner = board.owner.toString() === currentUser._id.toString();
+  const isAdmin = currentUser.role === UserRole.Admin;
+  if (!isOwner && !isAdmin) {
+    throw new Error('Access denied: Must be board owner or admin');
+  }
+
+  // 3. Find team
+  const team = await Team.findById(teamId).populate('members.user');
+  if (!team) {
+    throw new Error('Team not found');
+  }
+
+  // 4. Assign board.team
+  board.team = team._id;
+
+  // 5. Optionally sync the board’s `members` to match the team’s users
+  if (syncMembers) {
+    // Clear or reset board.members
+    board.members = [];
+    team.members.forEach((member) => {
+      board.members.push(member.user._id); // Ensure it's an ObjectId
+    });
+  }
+
+  await board.save();
+  return board;
+};
+
+// EXAMPLE: removeBoardTeam
+//  - boardId: which board to update
+//  - currentUser: who’s performing the action
+//  - optionally: also clear board.members
+export const removeBoardTeam = async (
+  boardId: string,
+  currentUser: IUser,
+  alsoClearMembers: boolean = true,
+): Promise<IBoard> => {
+  // 1. Find board
+  const board = await Board.findById(boardId);
+  if (!board) {
+    throw new Error('Board not found');
+  }
+
+  // 2. Check if currentUser is board owner or admin
+  const isOwner = board.owner.toString() === currentUser._id.toString();
+  const isAdmin = currentUser.role === UserRole.Admin;
+  if (!isOwner && !isAdmin) {
+    throw new Error('Access denied: Must be board owner or admin');
+  }
+
+  // 3. Remove the team
+  board.team = undefined as any; // or null, depending on your schema
+
+  // 4. Optionally clear board.members too
+  if (alsoClearMembers) {
+    board.members = [];
+  }
+
+  await board.save();
+  return board;
+};

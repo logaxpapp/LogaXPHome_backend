@@ -9,7 +9,6 @@ import {
   deleteBoard,
   updateBoardLists,
 } from '../../services/Task/boardService';
-
 import Board from '../../models/Task/Board';
 import Team, { ITeam, ITeamMember } from '../../models/Team';
 import { IUser } from '../../models/User';

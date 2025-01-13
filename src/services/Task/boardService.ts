@@ -80,9 +80,8 @@ export const createBoard = async (input: CreateBoardInput): Promise<IBoard> => {
   return board;
 };
 
-
 /**
- * Fetch a Board by ID, populating team/members/lists/cards
+ * Fetch a Board by ID, populating team/members/lists/cards, and ensuring lists include board details
  */
 export const getBoardById = async (boardId: string): Promise<IBoard | null> => {
   return Board.findById(boardId)
@@ -96,17 +95,32 @@ export const getBoardById = async (boardId: string): Promise<IBoard | null> => {
     })
     .populate({
       path: 'lists',
-      populate: {
-        path: 'cards',
-        populate: {
-          path: 'assignees',
-          select: 'name email',
+      populate: [
+        {
+          path: 'cards',
+          populate: [
+            {
+              path: 'assignees',
+              select: 'name email',
+            },
+            {
+              path: 'attachments', // Populate attachments
+              select: 'filename url',
+            },
+          ],
         },
-      },
+        {
+          path: 'board', // Populate board details for each list
+          select: 'name description headers team',
+        },
+      ],
     })
     .populate('labels')
+    
     .exec();
 };
+
+
 
 /**
  * Update a Board

@@ -323,6 +323,88 @@ class TicketController {
       res.status(400).json({ message: error.message });
     }
   }
+
+  async getCreatedTickets(req: Request, res: Response): Promise<void> {
+    try {
+      const user = req.user as IUser;
+  
+      if (!user._id) {
+        res.status(400).json({ message: 'User ID is missing' });
+        return;
+      }
+  
+      const filters: any = { createdBy: user._id }; // Fetch tickets created by the logged-in user
+  
+      // Optional: Add additional filters from query params
+      if (req.query.status) {
+        filters.status = req.query.status;
+      }
+  
+      const options = {
+        skip: parseInt(req.query.skip as string) || 0,
+        limit: parseInt(req.query.limit as string) || 10,
+        sort: req.query.sort || { date: -1 },
+      };
+  
+      const result = await ticketService.getTickets(filters, options);
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+  async getAssignedTickets(req: Request, res: Response): Promise<void> {
+    try {
+      const user = req.user as IUser;
+  
+      if (!user._id) {
+        res.status(400).json({ message: 'User ID is missing' });
+        return;
+      }
+  
+      const filters: any = { assignedTo: user._id }; // Fetch tickets assigned to the logged-in user
+  
+      // Optional: Add additional filters from query params
+      if (req.query.status) {
+        filters.status = req.query.status;
+      }
+  
+      const options = {
+        skip: parseInt(req.query.skip as string) || 0,
+        limit: parseInt(req.query.limit as string) || 10,
+        sort: req.query.sort || { date: -1 },
+      };
+  
+      const result = await ticketService.getTickets(filters, options);
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+    // Get tickets by status
+async getTicketsByStatus(req: Request, res: Response) {
+  try {
+    const user = req.user as IUser;
+    const { status } = req.params;
+    const { skip = 0, limit = 10 } = req.query;
+
+    const filters = {
+      createdBy: user._id,
+      status,
+    };
+
+    const options = {
+      skip: parseInt(skip as string),
+      limit: parseInt(limit as string),
+      sort: { date: -1 },
+    };
+
+    const result = await ticketService.getTickets(filters, options);
+    res.status(200).json(result);
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
 }
 
 export default new TicketController();

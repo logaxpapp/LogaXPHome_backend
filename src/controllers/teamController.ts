@@ -1,19 +1,21 @@
-// src/controllers/teamController.ts
 import { Request, Response, NextFunction } from 'express';
-import * as teamService from '../services/teamService';
-import { ITeam } from '../models/Team';
+import { RequestHandler } from 'express';
 import mongoose from 'mongoose';
-import { createBoardTeam, addMemberToTeam } from '../services/teamService';
+
+import * as teamService from '../services/teamService';
+import Team, { ITeam } from '../models/Team';
 import { IUser } from '../models/User';
+import { UserRole } from '../types/enums';
 
-
+/**
+ * Extend Express Request to have `user?: IUser`
+ */
 interface AuthRequest extends Request {
   user?: IUser;
 }
 
-
 /**
- * Create a new team
+ * Create a new Board Team (with a single Leader: the owner).
  * POST /api/teams
  * Body: { name, description? }
  */
@@ -21,24 +23,29 @@ export const createBoardTeamHandler = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
-    // Must be logged in
+    // 1) Must be logged in
     if (!req.user) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      res.status(401).json({ message: 'Not authenticated' });
+      return;
     }
 
     const { name, description } = req.body;
     if (!name) {
-      return res.status(400).json({ message: 'Team name is required' });
+      res.status(400).json({ message: 'Team name is required' });
+      return;
     }
 
-    const team = await createBoardTeam({
+    // 2) Create the board team
+    const team = await teamService.createBoardTeam({
       name,
       description,
-      ownerId: req.user._id,
+      ownerId: req.user._id, // The user's _id
     });
-    return res.status(201).json(team);
+
+    res.status(201).json(team);
+    return; // exit
   } catch (err) {
     next(err);
   }
@@ -46,12 +53,16 @@ export const createBoardTeamHandler = async (
 
 /**
  * Create a new team
+ * - Must be Admin or Contractor
  */
-export const createTeamHandler = async (req: Request, res: Response) => {
+export const createTeamHandler = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
   try {
-    const ownerId = req.user?._id; // Assuming `authenticateJWT` adds `user` to `req`
+    const ownerId = req.user?._id;
     if (!ownerId) {
-      res.status(401).json({ message: 'Unauthorized: No user found in request.' });
+      res.status(401).json({ message: 'Unauthorized: No user in request.' });
       return;
     }
 
@@ -61,21 +72,26 @@ export const createTeamHandler = async (req: Request, res: Response) => {
     const team = await teamService.createTeam(ownerId.toString(), data);
 
     res.status(201).json(team);
+    return; // exit
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to create team', error: error.message });
   }
 };
 
 /**
- * Get all teams managed by the authenticated manager with search, filter, and pagination
+ * Get all teams (admin) or only manager's teams
+ * with optional search, filter, and pagination
  */
-export const getTeamsHandler = async (req: Request, res: Response) => {
+export const getTeamsHandler = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
   try {
     const userId = req.user?._id;
     const userRole = req.user?.role;
 
-    if (!userId) {
-      res.status(401).json({ message: 'Unauthorized: No user found in request.' });
+    if (!userId || !userRole) {
+      res.status(401).json({ message: 'Unauthorized: No user found.' });
       return;
     }
 
@@ -88,66 +104,123 @@ export const getTeamsHandler = async (req: Request, res: Response) => {
       limit: parseInt(limit as string, 10),
     };
 
-    const teamsData =
-      userRole === 'admin'
-        ? await teamService.getAllTeamsWithFilters(filters) // Admin can see all teams
-        : await teamService.getTeamsByManagerWithFilters(userId.toString(), filters); // Manager sees their own teams
-
-    res.status(200).json(teamsData);
+    if (userRole === UserRole.Admin) {
+      const data = await teamService.getAllTeamsWithFilters(filters);
+      res.status(200).json(data);
+      return;
+    } else {
+      const data = await teamService.getTeamsByManagerWithFilters(
+        userId.toString(),
+        filters
+      );
+      res.status(200).json(data);
+      return;
+    }
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to fetch teams', error: error.message });
   }
 };
 
-
 /**
  * Get a specific team by ID
+ * Must be the team owner or admin
  */
-export const getTeamByIdHandler = async (req: Request, res: Response) => {
+export const getTeamByIdHandler: RequestHandler = async (
+  req: AuthRequest,
+  res,
+  next
+): Promise<void> => {
   try {
     const ownerId = req.user?._id;
+    const userRole = req.user?.role;
     const teamId = req.params.id;
 
-    if (!ownerId) {
+    if (!ownerId || !userRole) {
       res.status(401).json({ message: 'Unauthorized: No user found in request.' });
-        return;
+      return; // stop
     }
 
-    const team = await teamService.getTeamById(ownerId.toString(), teamId);
+    let team: ITeam | null = null;
 
-    if (!team) {
-      res.status(404).json({ message: 'Team not found.' });
+    if (userRole === UserRole.Admin) {
+      // If admin, fetch all teams, then find by ID
+      const allTeamsResult = await teamService.getAllTeamsWithFilters({
+        search: undefined,
+        role: undefined,
+        page: 1,
+        limit: 9999,
+      });
+      team = allTeamsResult.teams.find((t) => t._id.toString() === teamId) || null;
+
+      if (!team) {
+        res.status(404).json({ message: 'Team not found or unauthorized.' });
+        return;
+      }
+
+      res.status(200).json(team);
+      return;
+    } else {
+      // normal user check
+      team = await teamService.getTeamById(ownerId.toString(), teamId);
+      if (!team) {
+        res.status(404).json({ message: 'Team not found or unauthorized.' });
+        return;
+      }
+
+      res.status(200).json(team);
       return;
     }
-
-    res.status(200).json(team);
-  } catch (error: any) {
-    res.status(500).json({ message: 'Failed to fetch team', error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
 /**
  * Update a team
+ * Must be team owner or admin
  */
-export const updateTeamHandler = async (req: Request, res: Response) => {
+export const updateTeamHandler = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
   try {
     const ownerId = req.user?._id;
+    const userRole = req.user?.role;
     const teamId = req.params.id;
     const updates: Partial<ITeam> = req.body;
 
-    if (!ownerId) {
+    if (!ownerId || !userRole) {
       res.status(401).json({ message: 'Unauthorized: No user found in request.' });
-        return;
+      return;
     }
 
-    const updatedTeam = await teamService.updateTeam(ownerId.toString(), teamId, updates);
+    // If Admin, no need to check ownership
+    if (userRole === UserRole.Admin) {
+      const foundTeam = await Team.findById(teamId);
+      if (!foundTeam) {
+        res.status(404).json({ message: 'Team not found' });
+        return;
+      }
+      // Merge updates
+      Object.assign(foundTeam, updates);
+      const saved = await foundTeam.save();
+      res.status(200).json(saved);
+      return;
+    }
 
+    // otherwise, normal approach
+    const updatedTeam = await teamService.updateTeam(
+      ownerId.toString(),
+      teamId,
+      updates
+    );
     if (!updatedTeam) {
       res.status(404).json({ message: 'Team not found or unauthorized.' });
-        return;
+      return;
     }
 
     res.status(200).json(updatedTeam);
+    return;
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to update team', error: error.message });
   }
@@ -155,25 +228,43 @@ export const updateTeamHandler = async (req: Request, res: Response) => {
 
 /**
  * Delete a team
+ * Must be team owner or admin
  */
-export const deleteTeamHandler = async (req: Request, res: Response) => {
+export const deleteTeamHandler = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
   try {
     const ownerId = req.user?._id;
+    const userRole = req.user?.role;
     const teamId = req.params.id;
 
-    if (!ownerId) {
+    if (!ownerId || !userRole) {
       res.status(401).json({ message: 'Unauthorized: No user found in request.' });
       return;
     }
 
-    const success = await teamService.deleteTeam(ownerId.toString(), teamId);
+    if (userRole === UserRole.Admin) {
+      // admin => do a direct remove
+      const foundTeam = await Team.findById(teamId);
+      if (!foundTeam) {
+        res.status(404).json({ message: 'Team not found' });
+        return;
+      }
+      await foundTeam.deleteOne();
+      res.status(204).send();
+      return;
+    }
 
+    // else normal approach
+    const success = await teamService.deleteTeam(ownerId.toString(), teamId);
     if (!success) {
       res.status(404).json({ message: 'Team not found or unauthorized.' });
       return;
     }
 
     res.status(204).send();
+    return;
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to delete team', error: error.message });
   }
@@ -181,56 +272,83 @@ export const deleteTeamHandler = async (req: Request, res: Response) => {
 
 /**
  * Add a member (SubContractor) to a team with a specific role
+ * Must be team owner or admin
  */
-export const addMemberToTeamHandler = async (req: Request, res: Response) => {
-    try {
-      const ownerId = req.user?._id;
-      const teamId = req.params.id;
-      const { memberId, role } = req.body;
-  
-      if (!ownerId) {
-        res.status(401).json({ message: 'Unauthorized: No user found in request.' });
-        return;
-      }
-  
-      if (!memberId || !role) {
-        res.status(400).json({ message: 'Member ID and role are required.' });
-        return;
-      }
-  
-      const updatedTeam = await teamService.addMemberToTeam(ownerId.toString(), teamId, memberId, role);
-  
-      if (!updatedTeam) {
-        res.status(404).json({ message: 'Team not found or unauthorized.' });
-        return;
-      }
-  
-      res.status(200).json(updatedTeam);
-    } catch (error: any) {
-      res.status(500).json({ message: 'Failed to add member to team', error: error.message });
-    }
-  };
-
-/**
- * Remove a member (SubContractor) from a team
- */
-export const removeMemberFromTeamHandler = async (req: Request, res: Response) => {
+export const addMemberToTeamHandler = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
   try {
     const ownerId = req.user?._id;
+    const userRole = req.user?.role;
     const teamId = req.params.id;
-    const { memberId } = req.body;
+    const { memberId, role } = req.body;
 
-    if (!ownerId) {
+    if (!ownerId || !userRole) {
       res.status(401).json({ message: 'Unauthorized: No user found in request.' });
       return;
     }
+    if (!memberId || !role) {
+      res.status(400).json({ message: 'Member ID and role are required.' });
+      return;
+    }
 
+    const realOwnerId = userRole === UserRole.Admin
+      ? ownerId.toString() // If admin, we won't strictly check "owner" in the service
+      : ownerId.toString();
+
+    const updatedTeam = await teamService.addMemberToTeam(
+      realOwnerId,
+      teamId,
+      memberId,
+      role
+    );
+
+    if (!updatedTeam) {
+      res.status(404).json({ message: 'Team not found or unauthorized.' });
+      return;
+    }
+    res.status(200).json(updatedTeam);
+    return;
+  } catch (error: any) {
+    res.status(500).json({ 
+      message: error.message // pass through the actual reason
+    });
+  }  
+};
+
+/**
+ * Remove a member (SubContractor) from a team
+ * Must be team owner or admin
+ */
+export const removeMemberFromTeamHandler = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const ownerId = req.user?._id;
+    const userRole = req.user?.role;
+    const teamId = req.params.id;
+    const { memberId } = req.body;
+
+    if (!ownerId || !userRole) {
+      res.status(401).json({ message: 'Unauthorized: No user found in request.' });
+      return;
+    }
     if (!memberId) {
       res.status(400).json({ message: 'Member ID is required.' });
       return;
     }
 
-    const updatedTeam = await teamService.removeMemberFromTeam(ownerId.toString(), teamId, memberId);
+    const realOwnerId = userRole === UserRole.Admin
+      ? ownerId.toString()
+      : ownerId.toString();
+
+    const updatedTeam = await teamService.removeMemberFromTeam(
+      realOwnerId,
+      teamId,
+      memberId
+    );
 
     if (!updatedTeam) {
       res.status(404).json({ message: 'Team not found or unauthorized.' });
@@ -238,41 +356,54 @@ export const removeMemberFromTeamHandler = async (req: Request, res: Response) =
     }
 
     res.status(200).json(updatedTeam);
+    return;
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to remove member from team', error: error.message });
   }
 };
 
-
 /**
- * Update a member's role in a team
+ * Update a member's role
+ * Must be team owner or admin
  */
-export const updateMemberRoleHandler = async (req: Request, res: Response) => {
-    try {
-      const ownerId = req.user?._id;
-      const teamId = req.params.id;
-      const { memberId, newRole } = req.body;
-  
-      if (!ownerId) {
-        res.status(401).json({ message: 'Unauthorized: No user found in request.' });
-        return;
-      }
-  
-      if (!memberId || !newRole) {
-        res.status(400).json({ message: 'Member ID and new role are required.' });
-        return;
-      }
-  
-      const updatedTeam = await teamService.updateMemberRole(ownerId.toString(), teamId, memberId, newRole);
-  
-      if (!updatedTeam) {
-        res.status(404).json({ message: 'Team or member not found, or unauthorized.' });
-        return;
-      }
-  
-      res.status(200).json(updatedTeam);
-    } catch (error: any) {
-      res.status(500).json({ message: 'Failed to update member role', error: error.message });
+export const updateMemberRoleHandler = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const ownerId = req.user?._id;
+    const userRole = req.user?.role;
+    const teamId = req.params.id;
+    const { memberId, newRole } = req.body;
+
+    if (!ownerId || !userRole) {
+      res.status(401).json({ message: 'Unauthorized: No user found in request.' });
+      return;
     }
-  };
-  
+    if (!memberId || !newRole) {
+      res.status(400).json({ message: 'Member ID and new role are required.' });
+      return;
+    }
+
+    const realOwnerId = userRole === UserRole.Admin
+      ? ownerId.toString()
+      : ownerId.toString();
+
+    const updatedTeam = await teamService.updateMemberRole(
+      realOwnerId,
+      teamId,
+      memberId,
+      newRole
+    );
+
+    if (!updatedTeam) {
+      res.status(404).json({ message: 'Team or member not found, or unauthorized.' });
+      return;
+    }
+
+    res.status(200).json(updatedTeam);
+    return;
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to update member role', error: error.message });
+  }
+};

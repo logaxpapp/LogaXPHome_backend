@@ -5,6 +5,7 @@ import { ICard } from './Card';
 import { IUser } from '../User';
 
 export interface IAttachment extends Document {
+  _id: mongoose.Types.ObjectId;
   card: mongoose.Types.ObjectId | ICard;
   uploader: mongoose.Types.ObjectId | IUser;
   filename: string;

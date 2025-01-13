@@ -7,6 +7,7 @@ import {
   updateCardHandler,
   deleteCardHandler,
   assignUserToCardHandler,
+  unassignUserFromCardHandler,
   // Sub-task handlers
   addSubTaskHandler,
   updateSubTaskHandler,
@@ -28,6 +29,9 @@ import {
   getCustomFieldByIdHandler,
   addLabelToCardHandler,
   removeLabelFromCardHandler,
+  updateCardGanttHandler,
+  fetchCardsByBoardIdHandler,
+  fetchAllCardsByBoardIdHandler
 } from '../../controllers/Task/cardController';
 import { authenticateJWT } from '../../middlewares/authMiddleware';
 import { authorizeCardAccess } from '../../middlewares/cardMiddleware';
@@ -52,11 +56,22 @@ router.post('/', createCardHandler);
 router.get('/:cardId', getCardHandler);
 
 /**
+ * @route   GET /api/cards/:boardId
+ * @desc    Fetch all cards for a board
+ * @access  Private
+ * */
+router.get('/boards/:boardId/cards', fetchCardsByBoardIdHandler);
+
+router.get('/boards/:boardId/all', fetchAllCardsByBoardIdHandler);
+
+/**
  * @route   PUT /api/cards/:cardId
  * @desc    Update card details
  * @access  Private
  */
 router.put('/:cardId', authorizeCardAccess, updateCardHandler);
+
+router.put('/:cardId/gantt',  updateCardGanttHandler);
 
 router.get('/:cardId/subtasks/:subTaskId', getSubTaskByIdHandler);
 router.get('/:cardId/timelogs/:timeLogId', getTimeLogByIdHandler);
@@ -76,27 +91,23 @@ router.delete('/:cardId', authorizeCardAccess, deleteCardHandler);
  */
 router.post('/:cardId/assign', authorizeCardAccess, assignUserToCardHandler);
 
+// DELETE /api/cards/:cardId/unassign (or POST if you prefer)
+router.delete('/:cardId/unassign', authorizeCardAccess, unassignUserFromCardHandler);
+
 /* -----------------------------------------------------------
    SUB-TASK ROUTES
 ----------------------------------------------------------- */
+/// src/routes/cardRoutes.ts
 
-/**
- * @route   POST /api/cards/:cardId/subtasks
- * @desc    Add a sub-task
- */
+// POST /api/cards/:cardId/subtasks
 router.post('/:cardId/subtasks', authorizeCardAccess, addSubTaskHandler);
 
-/**
- * @route   PUT /api/cards/:cardId/subtasks/:subtaskIndex
- * @desc    Update a sub-task
- */
-router.put('/:cardId/subtasks/:subtaskIndex', authorizeCardAccess, updateSubTaskHandler);
+// PUT /api/cards/:cardId/subtasks/:subTaskId
+router.put('/:cardId/subtasks/:subTaskId', authorizeCardAccess, updateSubTaskHandler);
 
-/**
- * @route   DELETE /api/cards/:cardId/subtasks/:subtaskIndex
- * @desc    Delete a sub-task
- */
-router.delete('/:cardId/subtasks/:subtaskIndex', authorizeCardAccess, deleteSubTaskHandler);
+// DELETE /api/cards/:cardId/subtasks/:subTaskId
+router.delete('/:cardId/subtasks/:subTaskId', authorizeCardAccess, deleteSubTaskHandler);
+
 
 /* -----------------------------------------------------------
    TIME LOG ROUTES

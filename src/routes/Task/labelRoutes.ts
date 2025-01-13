@@ -6,6 +6,7 @@ import {
   deleteLabelHandler,
   getLabelByIdHandler,
   getLabelsByBoardHandler,
+  updateLabelHandler,
 } from '../../controllers/Task/labelController';
 import { authenticateJWT } from '../../middlewares/authMiddleware';
 
@@ -41,5 +42,12 @@ router.get('/:labelId', getLabelByIdHandler);
  * @access  Private
  */
 router.delete('/:labelId', deleteLabelHandler);
+
+/**
+ * @route   PUT /api/labels/:labelId
+ * @desc    Update a label
+ * @access  Private
+ */
+router.put('/:labelId', updateLabelHandler);
 
 export default router;

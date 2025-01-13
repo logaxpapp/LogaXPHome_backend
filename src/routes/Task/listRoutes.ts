@@ -40,7 +40,9 @@ router.get('/:boardId/:header', getListsByHeaderHandler);
  * @desc    Update list details
  * @access  Private
  */
-router.put('/:listId', updateListHandler);
+router.put('/:listId/header', updateListHandler);
+
+router.put('/:listId/', updateListHandler);
 
 /**
  * @route   DELETE /api/lists/:listId

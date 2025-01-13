@@ -4,7 +4,7 @@ import { Request, Response, NextFunction } from 'express';
 import Card from '../models/Task/Card';
 import { IUser } from '../models/User';
 import Board from '../models/Task/Board';
-import { IBoard, ICardPopulated, IListPopulated } from '../types/task'; // Import populated interfaces
+import { IBoard, IPopulatedCard, IListPopulated } from '../types/task'; // Import populated interfaces
 
 interface AuthenticatedRequest extends Request {
   user?: IUser;
@@ -26,7 +26,7 @@ export const authorizeCardAccess = async (
       });
 
     // Type assertion to ICardPopulated | null
-    const populatedCard = card as ICardPopulated | null;
+    const populatedCard = card as IPopulatedCard | null;
 
     if (!populatedCard) {
       res.status(404).json({ message: 'Card not found' });

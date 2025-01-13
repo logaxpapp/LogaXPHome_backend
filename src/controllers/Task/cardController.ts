@@ -1,7 +1,7 @@
 // src/controllers/cardController.ts
 
 import { Request, Response, NextFunction } from 'express';
-
+import mongoose from 'mongoose';
 
 import {
   createCard,
@@ -10,8 +10,8 @@ import {
   deleteCard,
   assignUserToCard,
   addSubTask,
-  updateSubTask,
-  deleteSubTask,
+  updateSubTaskById,
+  deleteSubTaskById,
   logTime,
   addCustomField,
   updateCustomField,
@@ -25,8 +25,12 @@ import {
   getCustomFieldById,
   addLabelToCard,
   removeLabelFromCard,
+  getCardsByBoardIdWithFilters,
+  getCardByBoardId,
+  unassignUserFromCard
 
 } from '../../services/Task/cardService';
+import { getBoardById } from '../../services/Task/boardService';
 import { IUser } from '../../models/User';
 
 // Extend Express Request to include user
@@ -42,29 +46,38 @@ interface AuthenticatedRequest extends Request {
  * Create a new Card
  */
 export const createCardHandler = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const { title, description, list, assignees, labels, dueDate, position } = req.body;
-      const card = await createCard(
-        {
-          title,
-          description,
-          list, // Directly use 'list' from req.body
-          assignees,
-          labels,
-          dueDate,
-          position,
-        },
-        req.user!
-      );
-      res.status(201).json(card);
-    } catch (error: any) {
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { title, description, list, assignees, labels, dueDate, position, dependencies } = req.body;
+    const card = await createCard(
+      {
+        title,
+        description,
+        list,
+        assignees,
+        labels,
+        dueDate,
+        position,
+        dependencies, // Now included
+      },
+      req.user!
+    );
+
+    const populatedCard = await getCardById(card._id.toString()); // Ensure _id is a string
+    res.status(201).json(populatedCard); // Return populated card
+  } catch (error: any) {
+    if (error.message.includes('Circular dependency')) {
+      res.status(400).json({ message: error.message });
+    } else {
       next(error);
     }
-  };
+  }
+};
+
+
   
 
 /**
@@ -111,9 +124,14 @@ export const updateCardHandler = async (
 
     res.status(200).json(updatedCard);
   } catch (error: any) {
-    next(error);
+    if (error.message.includes('circular dependency')) {
+      res.status(400).json({ message: error.message });
+    } else {
+      next(error);
+    }
   }
 };
+
 
 /**
  * Delete Card
@@ -125,12 +143,102 @@ export const deleteCardHandler = async (
 ) => {
   try {
     const { cardId } = req.params;
-    await deleteCard(cardId, req.user!);
-    res.status(200).json({ message: 'Card deleted successfully' });
+    const boardId = await deleteCard(cardId, req.user!);
+    if (boardId === null) {
+      res.status(404).json({ message: 'Card not found' });
+      return;
+    }
+
+    // Return both message and boardId
+    res.status(200).json({
+      message: 'Card deleted successfully',
+      boardId, 
+    });
   } catch (error: any) {
     next(error);
   }
 };
+
+
+interface UpdateCardInput {
+  title?: string;
+  description?: string;
+  startDate?: Date;       // <--- new
+  dueDate?: Date;
+  progress?: number;      // <--- new
+  position?: number;
+  status?: string;
+  priority?: string;
+  list?: mongoose.Types.ObjectId;
+  assignees?: mongoose.Types.ObjectId[];
+}
+
+
+
+/**
+ * Update a card's Gantt fields (startDate, dueDate, progress) via a route handler.
+ */
+export const updateCardGanttHandler = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { cardId } = req.params;
+    const { startDate, dueDate, progress } = req.body;
+
+    // Fetch existing card to compare progress
+    const existingCard = await getCardById(cardId);
+    if (!existingCard) {
+      res.status(404).json({ message: 'Card not found' });
+      return;
+    }
+
+    // Validate progress
+    if (progress !== undefined) {
+      if (typeof progress !== 'number' || progress < 0 || progress > 100) {
+        res.status(400).json({ message: 'Invalid progress value.' });
+        return;
+      }
+
+      // Example Business Rule: Prevent decreasing progress
+      if (progress < existingCard.progress) {
+        res.status(400).json({ message: 'Progress cannot be decreased.' });
+        return;
+      }
+    }
+
+    // Validate startDate & dueDate if necessary
+    if (startDate && isNaN(Date.parse(startDate))) {
+      res.status(400).json({ message: 'Invalid startDate format.' });
+      return;
+    }
+    if (dueDate && isNaN(Date.parse(dueDate))) {
+      res.status(400).json({ message: 'Invalid dueDate format.' });
+      return;
+    }
+
+    // Build your updates object
+    const updates: UpdateCardInput = {};
+    if (startDate) updates.startDate = new Date(startDate);
+    if (dueDate) updates.dueDate = new Date(dueDate);
+    if (progress !== undefined) updates.progress = progress;
+
+    // Call your service function
+    const updatedCard = await updateCard(cardId, updates, req.user!);
+
+    if (!updatedCard) {
+      res.status(404).json({ message: 'Card not found after update.' });
+      return;
+    }
+
+    // **Return the updatedCard in the response** so the front end can see boardId, etc.
+    res.status(200).json(updatedCard);
+  } catch (err) {
+    next(err);
+  }
+};
+
 
 /**
  * Assign User to Card
@@ -144,14 +252,60 @@ export const assignUserToCardHandler = async (
     const { cardId } = req.params;
     const { userId } = req.body;
 
-    const updatedCard = await assignUserToCard(cardId, userId);
+    // The user performing the action (actor)
+    const actor = req.user as IUser;
 
-    if (!updatedCard) {
+    // Call our service function
+    const { card, boardId } = await assignUserToCard(cardId, userId, actor);
+
+    if (!card) {
+      res.status(404).json({ message: 'Card not found' });
+    return;
+    }
+
+    // Return boardId so the front end can re-fetch the board if needed
+     res.status(200).json({
+      message: 'User assigned to card successfully',
+      boardId,
+    });
+    return;
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+
+/**
+ * @route   DELETE /api/cards/:cardId/unassign
+ * @desc    Remove (unassign) a user from a card
+ * @access  Private
+ */
+export const unassignUserFromCardHandler = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { cardId } = req.params;
+    const { userId } = req.body;
+
+    // The user performing the action (actor)
+    const actor = req.user as IUser;
+
+    // Call the service function
+    const { card, boardId } = await unassignUserFromCard(cardId, userId, actor);
+
+    if (!card) {
       res.status(404).json({ message: 'Card not found' });
       return;
     }
 
-    res.status(200).json({ message: 'User assigned to card successfully' });
+    // Return boardId so the front end can re-fetch the board if needed
+    res.status(200).json({
+      message: 'User removed from card successfully',
+      boardId,
+    });
+    return;
   } catch (error: any) {
     next(error);
   }
@@ -175,7 +329,7 @@ export const addSubTaskHandler = async (
 
     const updatedCard = await addSubTask(
       cardId,
-      { title, completed: false, dueDate, assignee, id: '' }, // 'id' will be generated
+      { title, completed: false, dueDate, assignee }, // 'id' will be generated
       req.user!
     );
 
@@ -189,9 +343,8 @@ export const addSubTaskHandler = async (
     next(error);
   }
 };
-
 /**
- * Update Sub-Task
+ * Update sub-task by subTaskId
  */
 export const updateSubTaskHandler = async (
   req: AuthenticatedRequest,
@@ -199,25 +352,24 @@ export const updateSubTaskHandler = async (
   next: NextFunction
 ) => {
   try {
-    const { cardId, subtaskIndex } = req.params;
+    const { cardId, subTaskId } = req.params;
     const updates = req.body; // e.g. { title: "New Title", completed: true }
 
-    const subIndex = parseInt(subtaskIndex, 10);
-    const updatedCard = await updateSubTask(cardId, subIndex, updates, req.user!);
-
+    const updatedCard = await updateSubTaskById(cardId, subTaskId, updates, req.user!);
     if (!updatedCard) {
       res.status(404).json({ message: 'Card or sub-task not found' });
       return;
     }
 
     res.status(200).json(updatedCard);
+    return;
   } catch (error: any) {
     next(error);
   }
 };
 
 /**
- * Delete Sub-Task
+ * Delete sub-task by subTaskId
  */
 export const deleteSubTaskHandler = async (
   req: AuthenticatedRequest,
@@ -225,17 +377,16 @@ export const deleteSubTaskHandler = async (
   next: NextFunction
 ) => {
   try {
-    const { cardId, subtaskIndex } = req.params;
-    const subIndex = parseInt(subtaskIndex, 10);
+    const { cardId, subTaskId } = req.params;
 
-    const updatedCard = await deleteSubTask(cardId, subIndex, req.user!);
-
+    const updatedCard = await deleteSubTaskById(cardId, subTaskId, req.user!);
     if (!updatedCard) {
-      res.status(404).json({ message: 'Card or sub-task not found' });
-      return;
+       res.status(404).json({ message: 'Card or sub-task not found' });
+       return;
     }
 
-    res.status(200).json(updatedCard);
+     res.status(200).json(updatedCard);
+     return;
   } catch (error: any) {
     next(error);
   }
@@ -564,6 +715,128 @@ export const removeLabelFromCardHandler = async (
     }
 
     res.status(200).json(updatedCard);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const fetchCardsByBoardIdHandler = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { boardId } = req.params;
+    const {
+      search = '',
+      progress,
+      startDateFrom,
+      startDateTo,
+      dueDateFrom,
+      dueDateTo,
+      page = '1',
+      limit = '10',
+    } = req.query;
+
+    // Validate boardId
+    if (!mongoose.Types.ObjectId.isValid(boardId as string)) {
+      res.status(400).json({ message: 'Invalid Board ID' });
+      return;
+    }
+
+    // Check if the user has access to the board
+    const board = await getBoardById(boardId as string);
+    if (!board) {
+      res.status(404).json({ message: 'Board not found' });
+      return;
+    }
+
+    if (!req.user) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    // Allow admin to access all boards
+    if (req.user.role !== 'admin') {
+      const isMember = board.members.some(
+        (member) => member.toString() === req.user!._id.toString()
+      );
+
+      if (!isMember) {
+        res.status(403).json({ message: 'Access denied' });
+        return;
+      }
+    }
+
+    // Parse pagination parameters
+    const pageNumber = parseInt(page as string, 10) || 1;
+    const pageSize = parseInt(limit as string, 10) || 10;
+    const skip = (pageNumber - 1) * pageSize;
+
+    // Fetch cards with filters
+    const [cards, total] = await getCardsByBoardIdWithFilters({
+      boardId: boardId as string,
+      search: search as string,
+      progress: progress ? Number(progress) : undefined,
+      startDateFrom: startDateFrom as string,
+      startDateTo: startDateTo as string,
+      dueDateFrom: dueDateFrom as string,
+      dueDateTo: dueDateTo as string,
+      skip,
+      limit: pageSize,
+    });
+
+    res.status(200).json({
+      data: cards,
+      total,
+      page: pageNumber,
+      totalPages: Math.ceil(total / pageSize),
+    });
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const fetchAllCardsByBoardIdHandler = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { boardId } = req.params;
+
+    // Validate boardId
+    if (!mongoose.Types.ObjectId.isValid(boardId)) {
+      res.status(400).json({ message: 'Invalid Board ID' });
+      return;
+    }
+
+    // Check if the user has access to the board
+    const board = await getBoardById(boardId);
+    if (!board) {
+      res.status(404).json({ message: 'Board not found' });
+      return;
+    }
+
+    if (!req.user) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    // Allow admin to access all boards
+    if (req.user.role !== 'admin') {
+      const isMember = board.members.some(
+        (member) => member.toString() === req.user!._id.toString()
+      );
+
+      if (!isMember) {
+        res.status(403).json({ message: 'Access denied' });
+        return;
+      }
+    }
+
+    const cards = await getCardByBoardId(boardId);
+    res.status(200).json(cards);
   } catch (error: any) {
     next(error);
   }

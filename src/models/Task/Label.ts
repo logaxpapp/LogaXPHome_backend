@@ -1,11 +1,12 @@
-// src/models/Label.ts
+// src/models/Task/Label.ts
 
 import mongoose, { Document, Schema, Model } from 'mongoose';
 
 export interface ILabel extends Document {
+  _id: mongoose.Types.ObjectId;
   name: string;
-  color: string; // e.g., '#FF5733'
-  board: mongoose.Types.ObjectId;
+  color: string;
+  board: mongoose.Types.ObjectId; // References the Board
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,6 +19,9 @@ const LabelSchema: Schema<ILabel> = new Schema(
   },
   { timestamps: true }
 );
+
+// Adding index to board for performance
+LabelSchema.index({ board: 1 });
 
 const Label: Model<ILabel> = mongoose.model<ILabel>('Label', LabelSchema);
 export default Label;

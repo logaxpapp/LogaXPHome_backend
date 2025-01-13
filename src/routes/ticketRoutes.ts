@@ -26,6 +26,12 @@ router.get('/:id/watchers', ticketController.getTicketWatchers);
 // Get personal tickets (Users only)
 router.get('/personal', ticketController.getPersonalTickets);
 
+router.get('/created', ticketController.getCreatedTickets);
+
+router.get('/assigned', ticketController.getAssignedTickets);
+
+router.get('/status/:status', ticketController.getTicketsByStatus);
+
 // Get ticket by ID
 router.get('/:id', ticketController.getTicketById);
 

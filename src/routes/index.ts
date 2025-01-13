@@ -50,6 +50,10 @@ import attachmentRoutes from '../routes/Task/attachmentRoutes';
 import activityRoutes from '../routes/Task/activityRoutes';
 import boardMembershipRoutes from '../routes/Task/boardMembershipRoutes';
 import documentRoutes from './documentRoutes';
+import taskReportRoutes from '../routes/Task/reportRoutes';
+import refereeRoutes from '../routes/Task/refereeRoutes';
+import referenceRoutes from '../routes/Task/referenceRoutes';
+import invitationRoutes from '../routes/Task/invitationRoutes';
 const router = Router();
 
 // Unprotected Routes
@@ -109,6 +113,10 @@ router.use('/attachments', attachmentRoutes);
 router.use('/activities', activityRoutes);
 router.use('/board-memberships', boardMembershipRoutes);
 router.use('/documents', documentRoutes);
+router.use('/task-reports', taskReportRoutes);
+router.use('/referees', refereeRoutes);
+router.use('/references', referenceRoutes);
+router.use('/invitations', invitationRoutes);
 
 
 
