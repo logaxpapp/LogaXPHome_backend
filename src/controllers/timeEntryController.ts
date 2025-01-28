@@ -1,4 +1,8 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
+import TimeEntry from '../models/TimeEntry';
+import Shift from '../models/Shift';
+import User from '../models/User';
 import {
   createTimeEntry,
   updateTimeEntry,
@@ -6,349 +10,315 @@ import {
   getTimeEntriesByShift,
   getTimeEntriesByPayPeriod,
   deleteTimeEntry,
-    startBreak,
-    endBreak,
-    markAsAbsent,
-    resumeTimeEntry,
-    getEmployeeObjectId,
-    updateTimeEntryAdmin
+  startBreak,
+  endBreak,
+  markAsAbsent,
+  resumeTimeEntry,
+  updateTimeEntryAdmin
 } from '../services/timeEntryService';
-import { IShift } from '../models/Shift';
-import Shift from '../models/Shift';
-import User from '../models/User';
-import mongoose from'mongoose';
-import { ShiftTypeName, IShiftType } from '../models/ShiftType';
 import { checkActiveShift, createTemporaryShift } from '../services/shiftService';
-import TimeEntry from '../models/TimeEntry';
 
-
+// ------------------- CLOCK IN -------------------
 export const clockInController = async (req: Request, res: Response) => {
   try {
-    console.log('Request Body:', req.body);
     const { clockIn, shiftId } = req.body;
     const userId = req.user?._id as mongoose.Types.ObjectId;
 
-    if (!userId || !clockIn) {
-      console.error('User ID or Clock-In time is missing.');
-      res.status(400).json({ message: 'User ID and Clock-In time are required.' });
+    if (!userId) {
+       res.status(400).json({ message: 'User ID is required.' });
+       return;
+    }
+    if (!clockIn) {
+      res.status(400).json({ message: 'Clock-In time is required.' });
       return;
     }
 
-    // **1. Check if the user is already clocked in**
-    const activeTimeEntry = await TimeEntry.findOne({
+    // 1) Ensure user is not already clocked in
+    const alreadyClockedIn = await TimeEntry.findOne({
       employee: userId,
       status: 'clockedIn',
     });
-
-    if (activeTimeEntry) {
-      console.log('User is already clocked in:', activeTimeEntry);
-      res.status(400).json({ message: 'User is already clocked in.' });
-      return;
+    if (alreadyClockedIn) {
+       res.status(400).json({ message: 'You are already clocked in.' });
     }
 
-    // **2. Validate or create the active shift**
-    let activeShift: IShift | null = null;
-
+    // 2) Validate or create the shift
+    let activeShift = null;
     if (shiftId) {
-      console.log('Validating provided Shift ID:', shiftId);
-      activeShift = await Shift.findById(shiftId).lean<IShift>();
+      activeShift = await Shift.findById(shiftId);
       if (!activeShift) {
-        console.error('Invalid Shift ID provided:', shiftId);
-        res.status(400).json({ message: 'Invalid Shift ID provided.' });
-        return;
+         res.status(400).json({ message: 'Invalid Shift ID provided.' });
+          return;
       }
     } else {
-      console.log('No Shift ID provided. Checking for active shifts or creating a temporary shift...');
+      // Attempt to find if there's an active shift
       activeShift = await checkActiveShift(userId.toString());
-
+      // If none, create a temporary shift
       if (!activeShift) {
-        console.log('No active shift found. Creating a temporary shift...');
         activeShift = await createTemporaryShift(userId.toString(), new Date(clockIn));
       }
     }
 
     if (!activeShift || !activeShift._id) {
-      console.error('Failed to retrieve or create an active shift.');
-      res.status(500).json({ message: 'Failed to retrieve or create an active shift.' });
-      return;
+       res.status(500).json({ message: 'Failed to find or create an active shift.' });
+       return;
     }
 
-
-    // **3. Check for existing "clockedOut" or "onBreak" entries to resume**
-    const existingEntry = await TimeEntry.findOne({
+    // 3) If user was "onBreak" for the same shift, resume. Otherwise, create fresh clockIn.
+    const existingBreakEntry = await TimeEntry.findOne({
       employee: userId,
       shift: activeShift._id,
-      $or: [{ status: 'clockedOut' }, { status: 'onBreak' }],
+      status: 'onBreak',
     });
-
     let timeEntry;
-    if (existingEntry && existingEntry.status === 'onBreak') {
-      console.log('Resuming time entry from break:', existingEntry);
+    if (existingBreakEntry) {
       timeEntry = await resumeTimeEntry(userId.toString(), activeShift._id.toString(), new Date(clockIn));
     } else {
-      console.log('Creating new time entry for clock-in.');
       timeEntry = await createTimeEntry(userId.toString(), activeShift._id.toString(), new Date(clockIn));
     }
 
-    res.status(201).json(timeEntry);
+     res.status(201).json(timeEntry);
+     return;
   } catch (error: any) {
     console.error('Clock-In Error:', error.message);
-    res.status(400).json({ message: error.message || 'Failed to clock in.' });
+     res.status(400).json({ message: error.message || 'Failed to clock in.' });
+     return;
   }
 };
 
+// ------------------- CLOCK OUT -------------------
 export const clockOutController = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params; // Time entry ID
-    const { clockOut } = req.body;
+    const { id } = req.params;     // TimeEntry ID
+    const { clockOut, dailyNote } = req.body;
 
-    if (!id || !clockOut) {
-      res.status(400).json({ message: 'Time entry ID and Clock-Out time are required.' });
-      return;
+    if (!id) {
+       res.status(400).json({ message: 'Time entry ID is required.' });
+       return;
+    }
+    if (!clockOut) {
+       res.status(400).json({ message: 'Clock-Out time is required.' });
+       return;
+    }
+    if (!dailyNote || dailyNote.trim() === '') {
+       res.status(400).json({ message: 'A daily note is required before clocking out.' });
+       return;
     }
 
-    // Find the time entry
-    const timeEntry = await TimeEntry.findById(id).populate({
-      path: 'shift',
-      populate: {
-        path: 'shiftType',
-        model: 'ShiftType', // Reference the ShiftType model
-      },
+    // 1) Find the time entry
+    const timeEntry = await TimeEntry.findById(id);
+    if (!timeEntry) {
+       res.status(404).json({ message: 'Time entry not found.' });
+       return;
+    }
+
+    // 2) Must be clockedIn to clockOut
+    if (timeEntry.status !== 'clockedIn') {
+       res.status(400).json({ message: 'You are not currently clocked in.' });
+       return;
+    }
+
+    // 3) Perform update
+    const updatedEntry = await updateTimeEntry(id, {
+      clockOut: new Date(clockOut),
+      status: 'clockedOut',
+      dailyNote: dailyNote,   // Save the note
     });
 
-    if (!timeEntry) {
-      res.status(404).json({ message: 'Time entry not found.' });
-      return;
-    }
-
-    // Ensure the user is currently clocked in
-    if (timeEntry.status !== 'clockedIn') {
-      res.status(400).json({ message: 'Cannot clock out when not currently clocked in.' });
-      return;
-    }
-
-    // Ensure `clockIn` is defined
-    if (!timeEntry.clockIn) {
-      res.status(400).json({ message: 'Clock-In time is missing for this time entry.' });
-      return;
-    }
-
-    // Validate that the clock-out time is after clock-in time
-    const clockOutTime = new Date(clockOut);
-    if (clockOutTime <= timeEntry.clockIn) {
-      res.status(400).json({ message: 'Clock-Out time must be after Clock-In time.' });
-      return;
-    }
-
-    // Update the time entry
-    timeEntry.clockOut = clockOutTime;
-    timeEntry.status = 'clockedOut';
-    timeEntry.hoursWorked = (clockOutTime.getTime() - timeEntry.clockIn.getTime()) / (1000 * 60 * 60); // Calculate hours worked
-
-    await timeEntry.save();
-
-    res.status(200).json({ message: 'Clock-Out successful', timeEntry });
+     res.status(200).json({ message: 'Clock-Out successful', timeEntry: updatedEntry });
+     return;
   } catch (error: any) {
     console.error('Clock-Out Error:', error.message);
-    res.status(500).json({ message: error.message || 'Failed to clock out.' });
+     res.status(500).json({ message: error.message || 'Failed to clock out.' });
+     return;
   }
 };
 
-
+// ------------------- ADMIN UPDATE -------------------
 export const updateTimeEntryAdminController = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params; // Time entry ID
-    const updates = req.body; // Fields to update
-    const adminId = req.user?._id as mongoose.Types.ObjectId; // Admin's ID
+    const { id } = req.params;
+    const updates = req.body;
+    const adminId = req.user?._id as mongoose.Types.ObjectId;
 
     if (!id || !adminId) {
-      res.status(400).json({ message: 'Time entry ID and admin ID are required.' });
-      return;
+       res.status(400).json({ message: 'Time entry ID and admin ID are required.' });
+       return;
     }
 
-    // Perform the update
-    const updatedEntry = await updateTimeEntryAdmin(id, updates, adminId);
-
-    res.status(200).json(updatedEntry);
+    const updated = await updateTimeEntryAdmin(id, updates, adminId);
+     res.status(200).json(updated);
+     return;
   } catch (error: any) {
     console.error('Admin Update Error:', error.message);
-    res.status(500).json({ message: error.message || 'Failed to update time entry.' });
+     res.status(500).json({ message: error.message || 'Failed to update time entry.' });
+      return;
   }
 };
 
-
-
-// Get TimeEntries for a specific employee with pagination
- const getTimeEntriesByEmployeeController = async (req: Request, res: Response) => {
+// ------------------- GET ENTRIES BY EMPLOYEE -------------------
+export const getTimeEntriesByEmployeeController = async (req: Request, res: Response) => {
   try {
     const { employeeId } = req.params;
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 10;
 
-    if (!employeeId || typeof employeeId !== 'string') {
-      throw new Error('Invalid or missing employeeId parameter.');
-    }
-
     const timeEntries = await getTimeEntriesByEmployee(employeeId, page, limit);
-    res.status(200).json(timeEntries);
+     res.status(200).json(timeEntries);
+      return;
   } catch (error: any) {
     console.error('Error fetching time entries by employee:', error.message);
-    res.status(400).json({ message: error.message || 'Failed to fetch time entries.' });
+     res.status(400).json({ message: error.message || 'Failed to fetch time entries.' });
+     return;
   }
 };
 
-// Get TimeEntries for a specific shift with pagination
- const getTimeEntriesByShiftController = async (req: Request, res: Response) => {
+// ------------------- GET ENTRIES BY SHIFT -------------------
+export const getTimeEntriesByShiftController = async (req: Request, res: Response) => {
   try {
     const { shiftId } = req.params;
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 10;
 
     const timeEntries = await getTimeEntriesByShift(shiftId, page, limit);
-    res.status(200).json(timeEntries);
+     res.status(200).json(timeEntries);
+      return;
   } catch (error: any) {
     console.error('Error fetching time entries by shift:', error.message);
     res.status(400).json({ message: error.message || 'Failed to fetch time entries.' });
+      return;
   }
 };
 
-
-
-// Get TimeEntries for a specific pay period
- const getTimeEntriesByPayPeriodController = async (req: Request, res: Response) => {
+// ------------------- GET ENTRIES BY PAY PERIOD -------------------
+export const getTimeEntriesByPayPeriodController = async (req: Request, res: Response) => {
   try {
     const { payPeriodId } = req.params;
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 10;
 
     const timeEntries = await getTimeEntriesByPayPeriod(payPeriodId, page, limit);
-
-    res.status(200).json(timeEntries);
+     res.status(200).json(timeEntries);
+      return;
   } catch (error: any) {
     console.error('Error fetching time entries by pay period:', error.message);
-    res.status(400).json({ message: error.message || 'Failed to fetch time entries.' });
+     res.status(400).json({ message: error.message || 'Failed to fetch time entries.' });
+     return;
   }
 };
 
-
-// Delete a TimeEntry
- const deleteTimeEntryController = async (req: Request, res: Response) => {
+// ------------------- DELETE -------------------
+export const deleteTimeEntryController = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-
     await deleteTimeEntry(id);
-    res.status(200).json({ message: 'TimeEntry deleted successfully.' });
+     res.status(200).json({ message: 'TimeEntry deleted successfully.' });
+      return;
   } catch (error: any) {
-    res.status(400).json({ message: error.message || 'Failed to delete time entry.' });
+     res.status(400).json({ message: error.message || 'Failed to delete time entry.' });
+     return;
+  }
+};
+
+// ------------------- START BREAK -------------------
+export const startBreakController = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const updated = await startBreak(id);
+     res.status(200).json(updated);
+      return;
+  } catch (error: any) {
+     res.status(400).json({ message: error.message || 'Failed to start break.' });
+     return;
+  }
+};
+
+// ------------------- END BREAK -------------------
+export const endBreakController = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const updated = await endBreak(id);
+     res.status(200).json(updated);
+      return;
+  } catch (error: any) {
+     res.status(400).json({ message: error.message || 'Failed to end break.' });
+     return;
+  }
+};
+
+// ------------------- MARK ABSENT -------------------
+export const markAsAbsentController = async (req: Request, res: Response) => {
+  try {
+    const { employeeId, shiftId, reason } = req.body;
+    const entry = await markAsAbsent(employeeId, shiftId, reason);
+     res.status(201).json(entry);
+      return;
+  } catch (error: any) {
+     res.status(400).json({ message: error.message || 'Failed to mark absent.' });
+     return;
   }
 };
 
 
-// Start Break
- const startBreakController = async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-  
-      const updatedEntry = await startBreak(id);
-      res.status(200).json(updatedEntry);
-    } catch (error: any) {
-      res.status(400).json({ message: error.message || 'Failed to start break.' });
-    }
-  };
-  
-  // End Break
-  const endBreakController = async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-  
-      const updatedEntry = await endBreak(id);
-      res.status(200).json(updatedEntry);
-    } catch (error: any) {
-      res.status(400).json({ message: error.message || 'Failed to end break.' });
-    }
-  };
-  
-  // Mark as Absent
-  const markAsAbsentController = async (req: Request, res: Response) => {
-    try {
-      const { employeeId, shiftId, reason } = req.body;
-  
-      const timeEntry = await markAsAbsent(employeeId, shiftId, reason);
-      res.status(201).json(timeEntry);
-    } catch (error: any) {
-      res.status(400).json({ message: error.message || 'Failed to mark as absent.' });
-    }
-  };
 
-  
-  const fetchAbsencesController = async (req: Request, res: Response) => {
-    try {
-      const { employeeId } = req.params;
-  
-      // Convert employeeId (e.g., "EMP-1761") to ObjectId
-      const employeeObjectId = await getEmployeeObjectId(employeeId);
-  
-      // Fetch absences where status is 'absent'
-      const absences = await TimeEntry.find({ employee: employeeObjectId, status: 'absent' })
-        .select('reasonForAbsence createdAt') // Select relevant fields
-        .lean();
-  
-      res.status(200).json(absences);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message || 'Failed to fetch absences.' });
-    }
-  };
-  
-  export const fetchCurrentStatusController = async (req: Request, res: Response) => {
-    try {
-      console.log('Incoming Headers From Status:', req.headers); // Log all headers
-      console.log('CSRF Token from Header From Status:', req.headers['x-csrf-token']);
-      const { employeeId } = req.params;
-  
-      // Fetch User by `employee_id` to get `_id`
-      const user = await User.findOne({ employee_id: employeeId }).select('_id');
-      if (!user) {
-        res.status(404).json({ message: 'Employee not found.' });
-        return;
-      }
-      const employeeObjectId = user._id;
-  
-      // Fetch the latest TimeEntry for the employee
-      const timeEntry = await TimeEntry.findOne({ employee: employeeObjectId })
-        .sort({ clockIn: -1 }) // Sort to get the most recent entry
-        .populate('shift', 'date startTime endTime')
-        .lean();
-  
-      if (!timeEntry) {
-        res.status(404).json({ message: 'No time entry found for this employee.' });
-        return;
-      }
-  
-      // Include the `timeEntryId` in the response
-      const currentStatus = {
-        currentStatus: timeEntry.status,
-        timeEntryId: timeEntry._id, 
-        shift: timeEntry.shift,
-        break: timeEntry.breaks?.find((b) => !b.breakEnd) || null, // Active break
-      };
-  
-      res.status(200).json(currentStatus);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message || 'Failed to fetch current status.' });
-    }
-  };
-  
-  export {
+// ------------------- FETCH ABSENCES -------------------
+export const fetchAbsencesController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { employeeId } = req.params;
 
-    getTimeEntriesByEmployeeController,
-    getTimeEntriesByShiftController,
-    getTimeEntriesByPayPeriodController,
-    deleteTimeEntryController,
-    startBreakController,
-    endBreakController,
-    markAsAbsentController,
-    fetchAbsencesController,
-    
-  };
-  
-  
+    const user = await User.findOne({ employee_id: employeeId }).select('_id');
+    if (!user) {
+      res.status(404).json({ message: 'Employee not found.' });
+      return;
+    }
+
+    const absences = await TimeEntry.find({
+      employee: user._id,
+      status: 'absent',
+    })
+      .select('reasonForAbsence createdAt')
+      .lean();
+
+    res.status(200).json(absences);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch absences.' });
+  }
+};
+
+// ------------------- FETCH CURRENT STATUS -------------------
+export const fetchCurrentStatusController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { employeeId } = req.params;
+
+    const user = await User.findOne({ employee_id: employeeId }).select('_id');
+    if (!user) {
+      res.status(404).json({ message: 'Employee not found.' });
+      return;
+    }
+
+    // Grab the most recent time entry
+    const timeEntry = await TimeEntry.findOne({ employee: user._id })
+      .sort({ createdAt: -1 })
+      .populate('shift', 'date startTime endTime')
+      .lean();
+
+    if (!timeEntry) {
+      res.status(404).json({ message: 'No time entry found for this employee.' });
+      return;
+    }
+
+    const currentStatus = {
+      currentStatus: timeEntry.status,
+      timeEntryId: timeEntry._id,
+      clockIn: timeEntry.clockIn,
+      clockOut: timeEntry.clockOut,
+      shift: timeEntry.shift,
+      activeBreak: timeEntry.breaks?.find((b) => !b.breakEnd) || null,
+    };
+
+    res.status(200).json(currentStatus);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch current status.' });
+  }
+};
+
