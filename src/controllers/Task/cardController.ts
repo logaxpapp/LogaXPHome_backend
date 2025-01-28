@@ -29,6 +29,7 @@ import {
   getCardByBoardId,
   unassignUserFromCard
 
+
 } from '../../services/Task/cardService';
 import { getBoardById } from '../../services/Task/boardService';
 import { IUser } from '../../models/User';
@@ -172,12 +173,11 @@ interface UpdateCardInput {
   list?: mongoose.Types.ObjectId;
   assignees?: mongoose.Types.ObjectId[];
 }
-
-
-
 /**
  * Update a card's Gantt fields (startDate, dueDate, progress) via a route handler.
  */
+import { updateCardGanttFields } from '../../services/Task/cardService';
+
 export const updateCardGanttHandler = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -187,59 +187,22 @@ export const updateCardGanttHandler = async (
     const { cardId } = req.params;
     const { startDate, dueDate, progress } = req.body;
 
-    // Fetch existing card to compare progress
-    const existingCard = await getCardById(cardId);
-    if (!existingCard) {
+    const updated = await updateCardGanttFields(
+      cardId,
+      { startDate, dueDate, progress },
+      req.user!
+    );
+    if (!updated) {
       res.status(404).json({ message: 'Card not found' });
-      return;
+      return
     }
 
-    // Validate progress
-    if (progress !== undefined) {
-      if (typeof progress !== 'number' || progress < 0 || progress > 100) {
-        res.status(400).json({ message: 'Invalid progress value.' });
-        return;
-      }
-
-      // Example Business Rule: Prevent decreasing progress
-      if (progress < existingCard.progress) {
-        res.status(400).json({ message: 'Progress cannot be decreased.' });
-        return;
-      }
-    }
-
-    // Validate startDate & dueDate if necessary
-    if (startDate && isNaN(Date.parse(startDate))) {
-      res.status(400).json({ message: 'Invalid startDate format.' });
-      return;
-    }
-    if (dueDate && isNaN(Date.parse(dueDate))) {
-      res.status(400).json({ message: 'Invalid dueDate format.' });
-      return;
-    }
-
-    // Build your updates object
-    const updates: UpdateCardInput = {};
-    if (startDate) updates.startDate = new Date(startDate);
-    if (dueDate) updates.dueDate = new Date(dueDate);
-    if (progress !== undefined) updates.progress = progress;
-
-    // Call your service function
-    const updatedCard = await updateCard(cardId, updates, req.user!);
-
-    if (!updatedCard) {
-      res.status(404).json({ message: 'Card not found after update.' });
-      return;
-    }
-
-    // **Return the updatedCard in the response** so the front end can see boardId, etc.
-    res.status(200).json(updatedCard);
+    // Return the updated card
+    res.status(200).json(updated);
   } catch (err) {
     next(err);
   }
 };
-
-
 /**
  * Assign User to Card
  */
@@ -273,8 +236,6 @@ export const assignUserToCardHandler = async (
     next(error);
   }
 };
-
-
 /**
  * @route   DELETE /api/cards/:cardId/unassign
  * @desc    Remove (unassign) a user from a card

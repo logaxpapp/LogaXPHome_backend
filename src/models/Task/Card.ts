@@ -56,7 +56,7 @@ export interface ICard extends Document {
   position: number;
   startDate?: Date;   // <--- Distinct from createdAt
   dueDate?: Date;     // already present, used for end date
-  progress?: number;  // 0 to 100
+  progress: number;  // 0 to 100
   dependencies?: string[];
   statusHistory?: IStatusHistory[];
 

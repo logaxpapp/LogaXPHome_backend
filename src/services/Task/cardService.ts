@@ -11,6 +11,12 @@ import Label from '../../models/Task/Label';
 import { IUser } from '../../models/User';
 import { IPopulatedCard, ICreateCardInput } from '../../types/task';
 
+interface UpdateGanttInput {
+  startDate?: string;
+  dueDate?: string;
+  progress: number;
+}
+
 /**
  * Interface for Fetching Cards with Filters
  */
@@ -274,6 +280,67 @@ interface UpdateCardInput {
   list?: mongoose.Types.ObjectId;
   dependencies?: string[]; // New Field
 }
+
+
+
+/**
+ * Update ONLY Gantt fields: startDate, dueDate, progress.
+ * This does NOT handle reordering, dependencies, etc.
+ */
+export const updateCardGanttFields = async (
+  cardId: string,
+  updates: UpdateGanttInput,
+  user: IUser
+) => {
+  // 1) Find the card
+  const card = await Card.findById(cardId);
+  if (!card) {
+    throw new Error('Card not found');
+  }
+
+  // 2) Optionally validate progress
+  if (typeof updates.progress === 'number') {
+    // Example rule: progress can’t decrease
+    if (updates.progress < card.progress) {
+      throw new Error('Progress cannot be decreased.');
+    }
+    card.progress = updates.progress;
+  }
+
+  // 3) Convert startDate/dueDate if provided
+  if (updates.startDate) {
+    const parsedStart = new Date(updates.startDate);
+    if (isNaN(parsedStart.getTime())) {
+      throw new Error('Invalid startDate format.');
+    }
+    card.startDate = parsedStart;
+  }
+  if (updates.dueDate) {
+    const parsedDue = new Date(updates.dueDate);
+    if (isNaN(parsedDue.getTime())) {
+      throw new Error('Invalid dueDate format.');
+    }
+    card.dueDate = parsedDue;
+  }
+
+  // 4) Save the card
+  const updatedCard = await card.save();
+
+  // 5) Record Activity if you want
+  const listDoc = await List.findById(updatedCard.list);
+  await Activity.create({
+    board: listDoc?.board,
+    list: updatedCard.list,
+    card: updatedCard._id,
+    user: user._id,
+    type: ActivityType.Updated,
+    details: `Updated Gantt fields on card "${updatedCard.title}".`,
+  });
+
+  // 6) Re-populate if you want a fully populated result
+  const populatedCard = await getCardById(updatedCard._id.toString());
+  return populatedCard;
+};
 /**
  * Update an existing card with dependencies and circular dependency checks.
  * 

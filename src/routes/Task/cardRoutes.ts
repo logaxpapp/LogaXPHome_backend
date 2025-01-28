@@ -64,14 +64,16 @@ router.get('/boards/:boardId/cards', fetchCardsByBoardIdHandler);
 
 router.get('/boards/:boardId/all', fetchAllCardsByBoardIdHandler);
 
+router.put('/:cardId/gantt',  updateCardGanttHandler);
+
 /**
  * @route   PUT /api/cards/:cardId
  * @desc    Update card details
  * @access  Private
  */
-router.put('/:cardId', authorizeCardAccess, updateCardHandler);
+router.put('/:cardId',  updateCardHandler);
 
-router.put('/:cardId/gantt',  updateCardGanttHandler);
+
 
 router.get('/:cardId/subtasks/:subTaskId', getSubTaskByIdHandler);
 router.get('/:cardId/timelogs/:timeLogId', getTimeLogByIdHandler);
