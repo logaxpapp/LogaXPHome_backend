@@ -54,6 +54,7 @@ import taskReportRoutes from '../routes/Task/reportRoutes';
 import refereeRoutes from '../routes/Task/refereeRoutes';
 import referenceRoutes from '../routes/Task/referenceRoutes';
 import invitationRoutes from '../routes/Task/invitationRoutes';
+import whiteboardRoutes from './whiteboardRoutes';
 const router = Router();
 
 // Unprotected Routes
@@ -117,6 +118,7 @@ router.use('/task-reports', taskReportRoutes);
 router.use('/referees', refereeRoutes);
 router.use('/references', referenceRoutes);
 router.use('/invitations', invitationRoutes);
+router.use('/whiteboards', whiteboardRoutes);
 
 
 

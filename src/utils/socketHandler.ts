@@ -9,6 +9,10 @@ import { createMessage } from '../services/messageService';
 import Message from '../models/Message';
 import { OnlineStatus } from '../types/enums';
 
+// Whiteboard logic
+import Whiteboard from '../models/Whiteboard';
+import { updateWhiteboard } from '../services/whiteboardService';
+
 export const initializeSocket = (io: SocketIOServer) => {
   // Online users
   const onlineUsers = new Set<string>();
@@ -354,7 +358,62 @@ export const initializeSocket = (io: SocketIOServer) => {
       io.emit('user_status_update', { userId: user._id.toString(), onlineStatus });
     });
 
-    
+    /**
+     * =========================
+     * Whiteboard Collaboration
+     * =========================
+     */
+
+    socket.on('join_whiteboard', (data) => {
+      const { whiteboardId } = data;
+      // Optional: check if user has permission to see whiteboard
+      socket.join(`whiteboard_${whiteboardId}`);
+      console.log(`User ${user._id} joined whiteboard_${whiteboardId}`);
+    });
+
+    /**
+     * Listen for strokes & version from front end
+     */
+    socket.on('whiteboard_update', async (data) => {
+      try {
+        const { whiteboardId, strokes, clientVersion } = data;
+        // Load from DB
+        const wb = await Whiteboard.findById(whiteboardId);
+        if (!wb) {
+          return socket.emit('error', 'Whiteboard not found');
+        }
+
+        // Basic concurrency check
+        if (clientVersion !== wb.version) {
+          return socket.emit('whiteboard_conflict', {
+            serverVersion: wb.version,
+            serverStrokes: wb.strokes,
+          });
+        }
+
+        // Update
+        const updated = await updateWhiteboard(whiteboardId, strokes, false);
+        if (!updated) {
+          return socket.emit('error', 'Failed to update whiteboard');
+        }
+
+        // Broadcast new strokes + new version to all participants
+        io.to(`whiteboard_${whiteboardId}`).emit('whiteboard_update', {
+          strokes: updated.strokes,
+          version: updated.version,
+        });
+      } catch (err) {
+        console.error('whiteboard_update error:', err);
+        socket.emit('error', 'Failed to update whiteboard');
+      }
+    });
+
+    // Example revert (client emits 'whiteboard_revert')
+    socket.on('whiteboard_revert', async (data) => {
+      // Or call revertToSnapshot in service, then broadcast
+      // ...
+    });
+
 
     // Handle disconnection
     socket.on('disconnect', async () => {
@@ -370,3 +429,5 @@ export const initializeSocket = (io: SocketIOServer) => {
     });
   });
 };
+
+
