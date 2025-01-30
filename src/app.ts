@@ -17,6 +17,7 @@ import cookieParser from 'cookie-parser';
 // import { scheduleDailyTasks } from './utils/scheduler';
 import schedulePayPeriodCreation from './schedulers/payPeriodScheduler';
 import { initializeSocket } from './utils/socketHandler'; 
+import publicIndex  from './routes/publicIndex';
 
 
 dotenv.config();
@@ -66,6 +67,9 @@ app.use(cookieParser());
 
 // HTTP Request Logging
 app.use(morgan('combined'));
+
+// Public Routes
+//pp.use( '/api', publicIndex);
 
 // CSRF Protection
 const csrfProtection = csurf({

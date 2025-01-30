@@ -2,8 +2,9 @@
 import User from '../models/User';
 import { UserRole, UserStatus } from '../types/enums';
 import { IUser } from '../models/User';
-import { sendVerificationEmail } from '../utils/email';
+import { sendVerificationEmail, passwordResetEmail } from '../utils/email';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import Session from '../models/Session';
 
@@ -321,4 +322,76 @@ export const logoutUserById = async (userId: string) => {
   await Session.updateMany({ userId, isActive: true }, { isActive: false });
 
   // Optionally, perform other cleanup tasks, such as revoking tokens
+};
+
+/**
+ * requestPasswordResetService
+ * 1) Find user by email
+ * 2) Generate a secure token & expiration
+ * 3) Save to user.resetPasswordToken & user.resetPasswordTokenExpires
+ * 4) Send email with link or code
+ */
+export const requestPasswordResetService = async (email: string) => {
+  // 1) Lookup user by email
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw { status: 404, message: 'No user found with that email address' };
+  }
+
+  // 2) Generate a random token (32 bytes, hex-encoded)
+  const resetToken = crypto.randomBytes(32).toString('hex');
+
+  // Set token to expire in e.g., 15 minutes
+  const expires = new Date(Date.now() + 15 * 60 * 1000);
+
+  // 3) Save these to the user document
+  user.resetPasswordToken = resetToken;
+  user.resetPasswordTokenExpires = expires;
+  await user.save();
+
+  // 4) Send email with link or code
+  // If your `sendPasswordResetEmail` expects a URL param like '?token=xyz', do:
+  await passwordResetEmail(user.email, resetToken);
+
+  return { message: 'Password reset email sent.' };
+};
+
+/**
+ * resetPasswordService
+ * 1) Validate token
+ * 2) Check if token is expired
+ * 3) Check if new password is reused
+ * 4) Update password if valid
+ */
+export const resetPasswordService = async (token: string, newPassword: string) => {
+  // 1) Look up user by token
+  const user = await User.findOne({
+    resetPasswordToken: token,
+    resetPasswordTokenExpires: { $gt: new Date() }, // not expired
+  });
+
+  if (!user) {
+    throw { status: 400, message: 'Invalid or expired reset token' };
+  }
+
+  // 2) Check if the new password is reused
+  const reused = await user.isPasswordReused(newPassword);
+  if (reused) {
+    throw {
+      status: 400,
+      message: 'New password must not match any of your last 5 passwords',
+    };
+  }
+
+  // 3) Update the user’s password
+  // The pre-save hook will push the old password to passwordHistory, and re-hash this one
+  user.password_hash = newPassword;
+
+  // Clear out the reset token fields
+  user.resetPasswordToken = null;
+  user.resetPasswordTokenExpires = null;
+
+  await user.save();
+
+  return { message: 'Password has been reset successfully' };
 };

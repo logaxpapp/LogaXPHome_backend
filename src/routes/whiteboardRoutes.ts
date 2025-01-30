@@ -7,7 +7,8 @@ import {
   removeParticipantController,
   revertToSnapshotController,
   deleteWhiteboardController,
-  getMyWhiteboardsController
+  getMyWhiteboardsController,
+  deleteSnapshotController
 } from '../controllers/whiteboardController';
  import { authenticateJWT } from '../middlewares/authMiddleware';
 
@@ -25,5 +26,7 @@ router.post('/:id/participants', addParticipantController);
 router.delete('/:id/participants', removeParticipantController);
 router.put('/:id/revert', revertToSnapshotController);
 router.delete('/:id', deleteWhiteboardController);
+router.delete('/:id/snapshots/:snapshotId', deleteSnapshotController);
+
 
 export default router;

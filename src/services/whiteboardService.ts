@@ -145,3 +145,25 @@ export const revertToSnapshot = async (
 export const deleteWhiteboard = async (whiteboardId: string): Promise<void> => {
   await Whiteboard.findByIdAndDelete(whiteboardId);
 };
+
+
+/**
+ * Delete a snapshot from a given whiteboard
+ */
+export const deleteSnapshot = async (
+    whiteboardId: string,
+    snapshotId: string
+  ): Promise<IWhiteboard | null> => {
+    const wb = await Whiteboard.findById(whiteboardId);
+    if (!wb) {
+      throw new Error('Whiteboard not found');
+    }
+  
+    // Filter out the snapshot to delete
+    wb.snapshots = wb.snapshots.filter(
+      (snap) => snap._id?.toString() !== snapshotId
+    );
+  
+    await wb.save();
+    return wb;
+  };

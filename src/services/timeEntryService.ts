@@ -146,6 +146,7 @@ export const getTimeEntriesByEmployee = async (
   limit: number
 ): Promise<{ data: ITimeEntry[]; pagination: PaginationMetadata }> => {
   const employeeObjectId = await getEmployeeObjectId(employeeId);
+  console.log(`Fetching time entries for employee ${employeeId} (ObjectId: ${employeeObjectId})`);
 
   const totalItems = await TimeEntry.countDocuments({ employee: employeeObjectId });
   const totalPages = Math.ceil(totalItems / limit);
@@ -161,7 +162,6 @@ export const getTimeEntriesByEmployee = async (
     })
     .populate('employee', 'name')
     
-
   return {
     data,
     pagination: {

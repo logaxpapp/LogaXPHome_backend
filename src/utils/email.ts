@@ -13,9 +13,10 @@ dotenv.config();
 
 // Configure nodemailer transport
 const transporter = nodemailer.createTransport({
-  host: 'email-smtp.us-east-1.amazonaws.com', // or another region's endpoint
-  port: 465,         // or 587
-  secure: true,      // true for port 465, false for 587 (STARTTLS)
+  //host: 'email-smtp.us-east-1.amazonaws.com', // or another region's endpoint
+  service: 'gmail', // e.g. 'gmail' for Google Workspace
+  //port: 465,         // or 587
+  //secure: true,      // true for port 465, false for 587 (STARTTLS)
   auth: {
     user: process.env.EMAIL_USER,  // e.g. AKIA4MTWGW2DYKBBCAN5
     pass: process.env.EMAIL_PASS,  // e.g. BCYB5Pk-----------
@@ -112,6 +113,28 @@ Support Team`,
 
   await sendEmail(options);
 };
+
+export const passwordResetEmail = async (to: string, token: string): Promise<void> => {
+  // Correctly point to the frontend where users can reset their password
+  const resetLink = `${process.env.BACKEND_URL}/auth/reset-password?token=${token}`;
+
+  const options: EmailOptions = {
+    to,
+    subject: 'Reset Your Password',
+    text: `Hello,
+
+You can reset your password by clicking the following link: ${resetLink}
+
+If you did not request a password reset, please ignore this email.
+
+Best regards,
+Support Team`,
+    html: `<p>You can reset your password by clicking <a href="${resetLink}">here</a>.</p>`,
+  };
+
+  await sendEmail(options);
+};
+
 
 
 export const sendPasswordResetEmail = async (to: string, token: string): Promise<void> => {

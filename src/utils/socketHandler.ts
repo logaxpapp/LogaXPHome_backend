@@ -364,55 +364,36 @@ export const initializeSocket = (io: SocketIOServer) => {
      * =========================
      */
 
-    socket.on('join_whiteboard', (data) => {
-      const { whiteboardId } = data;
-      // Optional: check if user has permission to see whiteboard
-      socket.join(`whiteboard_${whiteboardId}`);
-      console.log(`User ${user._id} joined whiteboard_${whiteboardId}`);
+      // When a client joins a particular whiteboard:
+  socket.on('join_whiteboard', (data) => {
+    const { whiteboardId } = data;
+    // Optional permission check
+    socket.join(`whiteboard_${whiteboardId}`);
+    console.log(`User ${user._id} joined whiteboard_${whiteboardId}`);
+  });
+
+  // When a client sends updated strokes for the whiteboard:
+  socket.on('whiteboard_update', async (data) => {
+    const { whiteboardId, strokes, clientVersion } = data;
+
+    // Example concurrency check, DB update, etc. Then broadcast:
+    io.to(`whiteboard_${whiteboardId}`).emit('whiteboard_update', {
+      //strokes: updatedStrokes,
+     // version: updatedVersion,
     });
+  });
 
-    /**
-     * Listen for strokes & version from front end
-     */
-    socket.on('whiteboard_update', async (data) => {
-      try {
-        const { whiteboardId, strokes, clientVersion } = data;
-        // Load from DB
-        const wb = await Whiteboard.findById(whiteboardId);
-        if (!wb) {
-          return socket.emit('error', 'Whiteboard not found');
-        }
+  // When a client moves their cursor:
+  socket.on('whiteboard_cursor_move', (data) => {
+    const { whiteboardId, x, y, userId } = data;
 
-        // Basic concurrency check
-        if (clientVersion !== wb.version) {
-          return socket.emit('whiteboard_conflict', {
-            serverVersion: wb.version,
-            serverStrokes: wb.strokes,
-          });
-        }
-
-        // Update
-        const updated = await updateWhiteboard(whiteboardId, strokes, false);
-        if (!updated) {
-          return socket.emit('error', 'Failed to update whiteboard');
-        }
-
-        // Broadcast new strokes + new version to all participants
-        io.to(`whiteboard_${whiteboardId}`).emit('whiteboard_update', {
-          strokes: updated.strokes,
-          version: updated.version,
-        });
-      } catch (err) {
-        console.error('whiteboard_update error:', err);
-        socket.emit('error', 'Failed to update whiteboard');
-      }
+    // Broadcast to everyone else in that room
+    socket.broadcast.to(`whiteboard_${whiteboardId}`).emit('whiteboard_cursor_move', {
+      userId,
+      x,
+      y,
     });
-
-    // Example revert (client emits 'whiteboard_revert')
-    socket.on('whiteboard_revert', async (data) => {
-      // Or call revertToSnapshot in service, then broadcast
-      // ...
-    });
+  });
 
 
     // Handle disconnection

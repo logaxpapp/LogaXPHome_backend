@@ -8,6 +8,7 @@ import {
   removeParticipant,
   revertToSnapshot,
   deleteWhiteboard,
+  deleteSnapshot,
 } from '../services/whiteboardService';
 import Whiteboard from '../models/Whiteboard';
 
@@ -148,3 +149,24 @@ export const getMyWhiteboardsController = async (req: Request, res: Response) =>
         return;
   }
 };
+
+
+export const deleteSnapshotController = async (req: Request, res: Response) => {
+    try {
+      const { id, snapshotId } = req.params; // or you can pass snapshotId in req.body
+      const wb = await deleteSnapshot(id, snapshotId);
+      if (!wb) {
+         res.status(404).json({ message: 'Whiteboard not found' });
+            return;
+      }
+       res.status(200).json({
+        message: 'Snapshot deleted successfully',
+        whiteboard: wb
+      });
+      return;
+    } catch (error: any) {
+       res.status(400).json({ message: error.message });
+        return;
+    }
+  };
+  

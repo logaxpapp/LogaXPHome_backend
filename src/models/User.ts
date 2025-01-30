@@ -60,6 +60,8 @@ export interface IUser extends Document {
   googleAccessToken?: string;
   googleRefreshToken?: string;
   googleTokenExpiry?: Date;
+  resetPasswordToken?: string | null;
+  resetPasswordTokenExpires?: Date | null;
   lastLoginAt?: Date;
   passwordChangedAt?: Date;
   passwordExpiryNotified?: boolean;
@@ -126,6 +128,8 @@ const UserSchema: Schema<IUser> = new Schema(
     googleRefreshToken: { type: String },
     googleTokenExpiry: { type: Date },
     lastLoginAt: { type: Date },
+    resetPasswordToken: { type: String, default: null },
+    resetPasswordTokenExpires: { type: Date, default: null },
     passwordChangedAt: { type: Date },
     passwordExpiryNotified: { type: Boolean, default: false },
     acknowledgedPolicies: [{ type: Schema.Types.ObjectId, ref: 'Resource' }],

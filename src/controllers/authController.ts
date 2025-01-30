@@ -8,7 +8,9 @@ import {
   setupAccountService,
   getAllLoggedInUsersService,
   changePassword,
-  logoutUserById
+  logoutUserById,
+  requestPasswordResetService,
+  resetPasswordService
 } from '../services/authService';
 import Session from '../models/Session';
 import User from '../models/User';
@@ -206,3 +208,66 @@ export const adminLogoutUser = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Controller: requestPasswordReset
+ * POST /auth/request-password-reset
+ */
+export const requestPasswordReset = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+       res.status(400).json({ message: 'Email is required.' });
+      return;
+    }
+
+    const result = await requestPasswordResetService(email);
+     res.status(200).json(result);
+      return;
+  } catch (error: any) {
+     res.status(error.status || 500).json({
+      message: error.message || 'Server Error in requestPasswordReset',
+    });
+    return;
+  }
+};
+
+/**
+ * Controller: resetPasswordHandler
+ * POST /auth/reset-password
+ */
+export const resetPasswordHandler = async (req: Request, res: Response) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+       res
+        .status(400)
+        .json({ message: 'Token and newPassword are required.' });
+      return;
+    }
+
+    const result = await resetPasswordService(token, newPassword);
+     res.status(200).json(result);
+      return;
+  } catch (error: any) {
+     res.status(error.status || 500).json({
+      message: error.message || 'Server Error in resetPasswordHandler',
+    });
+    return;
+  }
+};
+
+
+export const getResetPassword = async (req: Request, res: Response) => {
+  const { token } = req.query;
+
+  if (!token) {
+     res.status(400).json({ message: 'Reset token is required' });
+    return;
+  }
+
+  // Log for debugging
+  console.log(`Redirecting user to: ${process.env.FRONTEND_URL}/reset-password/${token}`);
+
+  // Redirect to frontend where user can enter a new password
+  res.redirect(`${process.env.FRONTEND_URL}/reset-password/${token}`);
+};
