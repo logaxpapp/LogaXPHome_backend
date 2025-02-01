@@ -123,16 +123,16 @@ export const passwordResetEmail = async (to: string, token: string): Promise<voi
     subject: 'Reset Your Password',
     text: `Hello,
 
-You can reset your password by clicking the following link: ${resetLink}
+      You can reset your password by clicking the following link: ${resetLink}
 
-If you did not request a password reset, please ignore this email.
+      If you did not request a password reset, please ignore this email.
 
-Best regards,
-Support Team`,
-    html: `<p>You can reset your password by clicking <a href="${resetLink}">here</a>.</p>`,
-  };
+      Best regards,
+      Support Team`,
+          html: `<p>You can reset your password by clicking <a href="${resetLink}">here</a>.</p>`,
+        };
 
-  await sendEmail(options);
+        await sendEmail(options);
 };
 
 
@@ -145,14 +145,14 @@ export const sendPasswordResetEmail = async (to: string, token: string): Promise
     subject: 'Reset Your Password',
     text: `Hello,
 
-You can reset your password by clicking the following link: ${resetLink}
+    You can reset your password by clicking the following link: ${resetLink}
 
-If you did not request a password reset, please ignore this email.
+    If you did not request a password reset, please ignore this email.
 
-Best regards,
-Support Team`,
-    html: `<p>You can reset your password by clicking <a href="${resetLink}">here</a>.</p>`,
-  };
+    Best regards,
+    Support Team`,
+        html: `<p>You can reset your password by clicking <a href="${resetLink}">here</a>.</p>`,
+      };
 
   await sendEmail(options);
 };

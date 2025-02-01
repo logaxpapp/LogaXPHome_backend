@@ -9,6 +9,7 @@ import {
   revertToSnapshot,
   deleteWhiteboard,
   deleteSnapshot,
+  editWhiteboard,
 } from '../services/whiteboardService';
 import Whiteboard from '../models/Whiteboard';
 
@@ -26,6 +27,22 @@ export const createWhiteboardController = async (req: Request, res: Response) =>
     return;
   }
 };
+
+export const editWhiteboardController = async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { title, description } = req.body;
+  
+      // Partial updates for title/description
+      const updated = await editWhiteboard(id, title, description);
+  
+       res.status(200).json(updated);
+       return;
+    } catch (error: any) {
+       res.status(400).json({ message: error.message });
+       return;
+    }
+  };
 
 /**
  * Get by ID
@@ -167,6 +184,72 @@ export const deleteSnapshotController = async (req: Request, res: Response) => {
     } catch (error: any) {
        res.status(400).json({ message: error.message });
         return;
+    }
+  };
+  
+
+  // controllers/whiteboardController.ts
+
+export const getBoardParticipantsController = async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+  
+      const wb = await Whiteboard.findById(id)
+        .populate('participants', 'name email') // optional
+        .lean();
+  
+      if (!wb) {
+        return res.status(404).json({ message: 'Whiteboard not found' });
+      }
+  
+      const totalParticipants = wb.participants.length;
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+  
+      // Slice participants array
+      const paginatedParticipants = wb.participants.slice(startIndex, endIndex);
+  
+      return res.status(200).json({
+        participants: paginatedParticipants,
+        total: totalParticipants,
+        page,
+        limit,
+      });
+    } catch (err: any) {
+      return res.status(400).json({ message: err.message });
+    }
+  };
+  
+  // controllers/whiteboardController.ts
+
+export const getBoardSnapshotsController = async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+  
+      const wb = await Whiteboard.findById(id).lean();
+      if (!wb) {
+        return res.status(404).json({ message: 'Whiteboard not found' });
+      }
+  
+      const totalSnapshots = wb.snapshots.length;
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+  
+      // Slice snapshots according to page/limit
+      const paginatedSnapshots = wb.snapshots.slice(startIndex, endIndex);
+  
+      return res.status(200).json({
+        snapshots: paginatedSnapshots,
+        total: totalSnapshots,
+        page,
+        limit,
+      });
+    } catch (err: any) {
+      return res.status(400).json({ message: err.message });
     }
   };
   

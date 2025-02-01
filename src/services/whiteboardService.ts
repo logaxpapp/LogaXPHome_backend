@@ -30,6 +30,31 @@ export const createWhiteboard = async (
   return whiteboard;
 };
 
+export const editWhiteboard = async (
+    whiteboardId: string,
+    title?: string,
+    description?: string
+  ): Promise<IWhiteboard> => {
+    const wb = await Whiteboard.findById(whiteboardId);
+    if (!wb) {
+      throw new Error('Whiteboard not found');
+    }
+  
+    // Update fields if they were provided
+    if (typeof title !== 'undefined') {
+      wb.title = title;
+    }
+    if (typeof description !== 'undefined') {
+      wb.description = description;
+    }
+  
+    // Optionally, update other fields if needed
+    // wb.someOtherField = someValue;
+  
+    await wb.save();
+    return wb;
+  };
+
 /**
  * Get a single whiteboard by ID
  */
