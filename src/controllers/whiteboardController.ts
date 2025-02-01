@@ -201,7 +201,8 @@ export const getBoardParticipantsController = async (req: Request, res: Response
         .lean();
   
       if (!wb) {
-        return res.status(404).json({ message: 'Whiteboard not found' });
+         res.status(404).json({ message: 'Whiteboard not found' });
+            return;
       }
   
       const totalParticipants = wb.participants.length;
@@ -211,14 +212,16 @@ export const getBoardParticipantsController = async (req: Request, res: Response
       // Slice participants array
       const paginatedParticipants = wb.participants.slice(startIndex, endIndex);
   
-      return res.status(200).json({
+       res.status(200).json({
         participants: paginatedParticipants,
         total: totalParticipants,
         page,
         limit,
       });
+         return;
     } catch (err: any) {
-      return res.status(400).json({ message: err.message });
+       res.status(400).json({ message: err.message });
+            return;
     }
   };
   
@@ -232,7 +235,8 @@ export const getBoardSnapshotsController = async (req: Request, res: Response) =
   
       const wb = await Whiteboard.findById(id).lean();
       if (!wb) {
-        return res.status(404).json({ message: 'Whiteboard not found' });
+        res.status(404).json({ message: 'Whiteboard not found' });
+        return;
       }
   
       const totalSnapshots = wb.snapshots.length;
@@ -242,14 +246,16 @@ export const getBoardSnapshotsController = async (req: Request, res: Response) =
       // Slice snapshots according to page/limit
       const paginatedSnapshots = wb.snapshots.slice(startIndex, endIndex);
   
-      return res.status(200).json({
+       res.status(200).json({
         snapshots: paginatedSnapshots,
         total: totalSnapshots,
         page,
         limit,
       });
+         return;
     } catch (err: any) {
-      return res.status(400).json({ message: err.message });
+      res.status(400).json({ message: err.message });
+            return;
     }
   };
   
