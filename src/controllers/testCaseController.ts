@@ -486,13 +486,16 @@ export async function linkRequirementController(req: Request, res: Response) {
         .exec();
   
       if (!updatedTestCase) {
-        return res.status(404).json({ message: 'TestCase not found after update' });
+         res.status(404).json({ message: 'TestCase not found after update' });
+        return;
       }
   
-      return res.status(200).json(updatedTestCase);
+       res.status(200).json(updatedTestCase);
+        return;
     } catch (err) {
       console.error('Error linking requirement:', err);
-      return res.status(500).json({ message: 'Server Error' });
+       res.status(500).json({ message: 'Server Error' });
+        return;
     }
   }
   
@@ -505,7 +508,8 @@ export async function linkRequirementController(req: Request, res: Response) {
       const { requirementId } = req.body;
   
       if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(requirementId)) {
-        return res.status(400).json({ message: 'Invalid ID format' });
+         res.status(400).json({ message: 'Invalid ID format' });
+        return;
       }
   
       // Optionally fetch them if you want to confirm they match application:
@@ -515,18 +519,20 @@ export async function linkRequirementController(req: Request, res: Response) {
         Requirement.findById(requirementId),
       ]);
       if (!testCase || !requirement) {
-        return res
+         res
           .status(404)
           .json({ message: 'Either TestCase or Requirement not found' });
+        return;
       }
   
       // If you want to block unlink if they differ in application (rare case):
       if (testCase.application !== requirement.application) {
-        return res.status(400).json({
+         res.status(400).json({
           message: `Cannot unlink Requirement from a different application.
           TestCase application: ${testCase.application},
           Requirement application: ${requirement.application}`,
         });
+        return
       }
   
       const updatedTestCase = await TestCase.findByIdAndUpdate(
@@ -538,13 +544,16 @@ export async function linkRequirementController(req: Request, res: Response) {
         .exec();
   
       if (!updatedTestCase) {
-        return res.status(404).json({ message: 'TestCase not found' });
+         res.status(404).json({ message: 'TestCase not found' });
+        return
       }
   
-      return res.status(200).json(updatedTestCase);
+       res.status(200).json(updatedTestCase);
+        return;
     } catch (err) {
       console.error('Error unlinking requirement:', err);
-      return res.status(500).json({ message: 'Server Error' });
+       res.status(500).json({ message: 'Server Error' });
+        return;
     }
   }
 
