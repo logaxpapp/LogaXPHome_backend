@@ -44,11 +44,12 @@ export interface IActivityLog extends Document {
 }
 
 export interface ITicket extends Document {
+  _id: mongoose.Types.ObjectId;
   title: string;
   description: string;
   priority: TicketPriority;
   category: TicketCategory;
-  application: 'Loga Beauty' | 'GatherPlux' | 'TimeSync' | 'BookMiz';
+  application: "GatherPlux" | "BookMiz" | "BeautyHub" | "TimeSync" | "TaskBrick" | "ProFixer" | "DocSend" | "LogaXP" | "CashVent";
   status: TicketStatus;
   assignedTo?: mongoose.Types.ObjectId | IUser;
   department: 'HR' | 'IT' | 'Sales' | 'Marketing' | 'Finance';

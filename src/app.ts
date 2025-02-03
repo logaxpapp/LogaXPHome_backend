@@ -72,13 +72,17 @@ app.use(morgan('combined'));
 //pp.use( '/api', publicIndex);
 
 // CSRF Protection
+const TWELVE_HOURS_IN_MS = 12 * 60 * 60 * 1000; // 43200000
+
 const csrfProtection = csurf({
   cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
+    maxAge: TWELVE_HOURS_IN_MS,  // 12 hours
   },
 });
+
 
 // Apply CSRF protection to all POST, PUT, DELETE routes under /api
 app.use('/api', csrfProtection);

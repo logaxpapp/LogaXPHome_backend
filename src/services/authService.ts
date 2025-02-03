@@ -173,7 +173,7 @@ if (!isMatch) {
     role: user.role,
   };
 
-  const expiresIn = '2h'; // Token expiration
+  const expiresIn = '12h'; // Token expiration
   const token = jwt.sign(payload, process.env.JWT_SECRET as string, {
     expiresIn,
   });

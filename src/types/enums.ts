@@ -15,6 +15,7 @@ export enum UserRole {
   Approver = 'approver',
   Contractor = 'contractor',
   SubContractor = 'subContractor', // NEW ROLE
+  Tester = 'tester', // NEW ROLE
  
 }
 

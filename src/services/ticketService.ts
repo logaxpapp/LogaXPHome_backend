@@ -23,22 +23,29 @@ interface TicketQueryOptions {
 
 class TicketService {
   // Create a new ticket
-  async createTicket(ticketData: Partial<ITicket>, user: IUser): Promise<ITicket> {
+  async createTicket(ticketData: Partial<ITicket>, user?: IUser): Promise<ITicket> {
+    // If no user was provided, we can fallback to `ticketData.createdBy` or handle differently
+    const creatorId = user ? user._id : ticketData.createdBy;
+
     const ticket = new Ticket({
       ...ticketData,
-      createdBy: user._id,
-      watchers: [user._id],
+      // Use creatorId if present
+      createdBy: creatorId,
+
+      // watchers includes the user if we have it, else none
+      watchers: user ? [user._id] : [],
+      
       activityLog: [
         {
           action: 'Ticket created',
-          performedBy: user._id,
+          performedBy: creatorId,
           date: new Date(),
         },
       ],
     });
+
     return ticket.save();
   }
-
   // Get all tickets with optional filters
   async getTickets(
     filters: any = {},
