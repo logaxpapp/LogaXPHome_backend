@@ -81,6 +81,7 @@ export async function getAllTestCases(
     TestCase.find(query)
       .populate('assignedTo', 'name email')
       .populate('createdBy', 'name email')
+      .populate('requirementIds', 'title description status priority application')
       .sort(sortObj)
       .skip(skip)
       .limit(limit)
@@ -150,6 +151,7 @@ export async function updateTestCase(
       .populate('createdBy', 'name email')
       .populate('versions.updatedBy', 'name email')
       .populate('executions.executedBy', 'name email')
+      .populate('requirementIds', 'title description status priority application')
       .exec();
   }
   
@@ -162,6 +164,7 @@ export async function getTestCaseById(id: string): Promise<ITestCase | null> {
     .populate('assignedTo', 'name email')
     .populate('createdBy', 'name email')
     .populate('executions.executedBy', 'name email')
+    .populate('requirementIds', 'title description status priority application')
     .exec();
 }
 

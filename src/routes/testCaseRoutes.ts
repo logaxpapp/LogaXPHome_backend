@@ -13,7 +13,10 @@ import {
   getApplicationsController,
   addTestCaseAttachmentController,
   deleteTestCaseAttachmentController,
-  getTestAnalysis
+  getTestAnalysis,
+
+  linkRequirementController,
+  unlinkRequirementController,
 } from '../controllers/testCaseController';
 
 import { authenticateJWT } from '../middlewares/authMiddleware';
@@ -95,5 +98,10 @@ router.post('/:id/attachments', upload.single('attachment'), addTestCaseAttachme
  * @access  Protected
  */
 router.delete('/:id/attachments/:attachmentId', deleteTestCaseAttachmentController);
+
+/** Requirement linking/unlinking */
+router.post('/:id/link-requirement', linkRequirementController);
+router.post('/:id/unlink-requirement', unlinkRequirementController);
+
 
 export default router;
