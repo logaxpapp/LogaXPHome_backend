@@ -102,13 +102,16 @@ export async function deleteRequirementController(req: Request, res: Response) {
 
     const success = await deleteRequirement(id);
     if (!success) {
-      return res
+       res
         .status(404)
         .json({ message: 'Requirement not found or deletion failed' });
+        return;
     }
-    return res.status(200).json({ message: 'Requirement deleted' });
+     res.status(200).json({ message: 'Requirement deleted' });
+        return;
   } catch (err) {
     console.error('Error deleting requirement:', err);
-    return res.status(500).json({ message: 'Server error' });
+     res.status(500).json({ message: 'Server error' });
+      return;
   }
 }

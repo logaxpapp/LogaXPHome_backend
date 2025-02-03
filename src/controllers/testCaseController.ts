@@ -449,7 +449,8 @@ export async function linkRequirementController(req: Request, res: Response) {
       const { requirementId } = req.body;
   
       if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(requirementId)) {
-        return res.status(400).json({ message: 'Invalid ID format' });
+         res.status(400).json({ message: 'Invalid ID format' });
+            return;
       }
   
       // 1) Fetch both the testCase & requirement
@@ -459,18 +460,20 @@ export async function linkRequirementController(req: Request, res: Response) {
       ]);
   
       if (!testCase || !requirement) {
-        return res
+         res
           .status(404)
           .json({ message: 'Either TestCase or Requirement not found' });
+          return;
       }
   
       // 2) Ensure both share the same application
       if (testCase.application !== requirement.application) {
-        return res.status(400).json({
+         res.status(400).json({
           message: `Cannot link Requirement from a different application.
           TestCase application: ${testCase.application},
           Requirement application: ${requirement.application}`,
         });
+        return;
       }
   
       // 3) $addToSet to avoid duplicates
