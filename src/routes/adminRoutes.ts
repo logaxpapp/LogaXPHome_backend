@@ -20,6 +20,7 @@ import { authenticateJWT } from '../middlewares/authMiddleware';
 import { authorizeRoles } from '../middlewares/authorizeRoles';
 import { register, verifyEmailHandler } from '../controllers/authController';
 import { createContractorHandler } from '../controllers/createContractorHandler';
+import { createTestCaseShareLinkController } from '../controllers/testCaseShareController';
 import { UserRole } from '../types/enums';
 import multer from 'multer';
 
@@ -39,6 +40,9 @@ router.put('/deletion-requests/:id/reject', rejectDeletionHandler);
 
 // User Management
 router.post('/users/invite', createUserAndSendInviteHandler);
+
+// === New Routes ===
+router.post('/share-testcases', createTestCaseShareLinkController);
 
 // Create Contractor
 router.post(

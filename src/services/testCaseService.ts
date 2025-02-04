@@ -154,8 +154,6 @@ export async function updateTestCase(
       .populate('requirementIds', 'title description status priority application')
       .exec();
   }
-  
-
 /**
  * Retrieve a single TestCase by ID.
  */

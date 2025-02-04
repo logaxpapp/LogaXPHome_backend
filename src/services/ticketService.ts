@@ -399,6 +399,7 @@ class TicketService {
 
     return ticket;
   }
+  
 }
 
 export default new TicketService();

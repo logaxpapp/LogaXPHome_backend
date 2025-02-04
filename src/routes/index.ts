@@ -57,6 +57,7 @@ import invitationRoutes from '../routes/Task/invitationRoutes';
 import whiteboardRoutes from './whiteboardRoutes';
 import testCaseRoutes from './testCaseRoutes';
 import requirementRoutes from './requirementRoutes';
+import publicRouter from './publicRouter';
 const router = Router();
 
 // Unprotected Routes
@@ -123,6 +124,7 @@ router.use('/invitations', invitationRoutes);
 router.use('/whiteboards', whiteboardRoutes);
 router.use('/test-cases', testCaseRoutes);
 router.use('/requirements', requirementRoutes);
+router.use('/public', publicRouter);
 
 
 

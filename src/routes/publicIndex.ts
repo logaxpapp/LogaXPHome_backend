@@ -7,6 +7,7 @@ import {
   requestPasswordReset,
   resetPasswordHandler,
 } from '../controllers/authController';
+import publicRouter from './publicRouter';
 
 
 const router = Router();
@@ -16,6 +17,7 @@ const router = Router();
 // Add these new routes:
 router.post('/request-password-reset', requestPasswordReset); // Public route
 router.post('/reset-password', resetPasswordHandler);         // Public route
+
 
 
 

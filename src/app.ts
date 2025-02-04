@@ -18,6 +18,7 @@ import cookieParser from 'cookie-parser';
 import schedulePayPeriodCreation from './schedulers/payPeriodScheduler';
 import { initializeSocket } from './utils/socketHandler'; 
 import publicIndex  from './routes/publicIndex';
+import publicRouter from './routes/publicRouter';
 
 
 dotenv.config();
@@ -69,7 +70,8 @@ app.use(cookieParser());
 app.use(morgan('combined'));
 
 // Public Routes
-//pp.use( '/api', publicIndex);
+app.use('/public', publicRouter);
+//app.use( '/admin', publicIndex);
 
 // CSRF Protection
 const TWELVE_HOURS_IN_MS = 12 * 60 * 60 * 1000; // 43200000
