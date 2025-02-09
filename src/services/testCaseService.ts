@@ -7,6 +7,15 @@ import User from '../models/User';
 import ticketService from './ticketService';
 import { ITicket, TicketPriority, TicketCategory, TicketStatus } from '../models/Ticket';
 import { IUser } from '../models/User';
+export interface GetPersonalTestCasesOptions {
+  assignedTo?: string;   // userId as string
+  createdBy?: string;    // userId as string
+  search?: string;
+  page?: number;
+  limit?: number;
+  sortField?: string;
+  sortOrder?: 'asc' | 'desc';
+}
 
 /**
  * Type used for partial updates (e.g., $set, $pull, etc.) on a TestCase.
@@ -271,4 +280,75 @@ export async function addTestExecution(
     .populate('executions.executedBy', 'name email')
     .populate('executions.ticketId', '_id title status')
     .exec();
+}
+
+export async function getPersonalTestCases(
+  options: GetPersonalTestCasesOptions
+): Promise<{ testCases: ITestCase[]; total: number }> {
+  const query: any = {};
+
+  // Build personal filters
+  // If you want "either assigned or created", you might do $or queries:
+  // But typically, your UI passes only one of them (assignedTo) or (createdBy).
+  const orClauses: any[] = [];
+  if (options.assignedTo) {
+    orClauses.push({ assignedTo: options.assignedTo });
+  }
+  if (options.createdBy) {
+    orClauses.push({ createdBy: options.createdBy });
+  }
+
+  if (orClauses.length > 0) {
+    // If there's more than one condition, it becomes an OR query
+    // This means "assignedTo=me OR createdBy=me"
+    // If your UI only passes one of them, there's effectively just one clause.
+    query.$or = orClauses;
+  }
+
+  // Search (applies to title/description)
+  if (options.search) {
+    // combine with existing $or if needed
+    const searchRegex = { $regex: options.search, $options: 'i' };
+    const searchOr = [
+      { title: searchRegex },
+      { description: searchRegex },
+    ];
+
+    if (query.$or) {
+      // We already have $or for personal, so nest it in an $and
+      query.$and = [
+        { $or: query.$or },
+        { $or: searchOr },
+      ];
+      delete query.$or;
+    } else {
+      // If we had no $or for personal, just do $or for search
+      query.$or = searchOr;
+    }
+  }
+
+  // Pagination
+  const page = options.page && options.page > 0 ? options.page : 1;
+  const limit = options.limit || 10;
+  const skip = (page - 1) * limit;
+
+  // Sorting
+  const sortField = options.sortField || 'testId';
+  const order: 'asc' | 'desc' = options.sortOrder === 'desc' ? 'desc' : 'asc';
+  const sortObj: Record<string, 'asc' | 'desc'> = { [sortField]: order };
+
+  // Query + Count
+  const [testCases, total] = await Promise.all([
+    TestCase.find(query)
+      .populate('assignedTo', 'name email')
+      .populate('createdBy', 'name email')
+      .populate('requirementIds', 'title description status priority application')
+      .sort(sortObj)
+      .skip(skip)
+      .limit(limit)
+      .exec(),
+    TestCase.countDocuments(query),
+  ]);
+
+  return { testCases, total };
 }

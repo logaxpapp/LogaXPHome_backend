@@ -14,7 +14,7 @@ import {
   addTestCaseAttachmentController,
   deleteTestCaseAttachmentController,
   getTestAnalysis,
-
+  getPersonalTestCasesController,
   linkRequirementController,
   unlinkRequirementController,
 } from '../controllers/testCaseController';
@@ -35,6 +35,12 @@ router.get('/analysis', getTestAnalysis);
  * @access  Protected
  */
 router.get('/applications', getApplicationsController);
+
+/** 
+ * GET /test-cases/personal
+ * e.g., /test-cases/personal?assignedTo=someUserId&search=Regression
+ */
+router.get('/personal', getPersonalTestCasesController);
 
 /**
  * @route   GET /test-cases

@@ -13,6 +13,7 @@ import {
   addTestExecution,
   IAddExecutionPayload,
   GetAllTestCasesOptions,
+  getPersonalTestCases, GetPersonalTestCasesOptions 
 } from '../services/testCaseService';
 import { UserRole } from '../types/enums';
 import TestCase from '../models/TestCase';
@@ -557,6 +558,45 @@ export async function linkRequirementController(req: Request, res: Response) {
     }
   }
 
+
+  /**
+ * GET Personal Test Cases
+ * - Allows filtering by assignedTo, createdBy, plus optional search, pagination, sorting.
+ * - Typically used for "Test Cases Assigned To Me" or "Test Cases I Created".
+ * Example query: GET /test-cases/personal?assignedTo=<userId>&page=1&limit=5
+ */
+export async function getPersonalTestCasesController(req: Request, res: Response) {
+  try {
+    const {
+      assignedTo,
+      createdBy,
+      search,
+      page,
+      limit,
+      sortField,
+      sortOrder,
+    } = req.query;
+
+    // Convert query strings into our typed options
+    const options: GetPersonalTestCasesOptions = {
+      assignedTo: assignedTo ? String(assignedTo) : undefined,
+      createdBy: createdBy ? String(createdBy) : undefined,
+      search: search ? String(search) : undefined,
+      page: page ? parseInt(page as string, 10) : 1,
+      limit: limit ? parseInt(limit as string, 10) : 10,
+      sortField: sortField ? String(sortField) : 'testId',
+      sortOrder: sortOrder === 'desc' ? 'desc' : 'asc',
+    };
+
+    const result = await getPersonalTestCases(options);
+    // result: { testCases, total }
+
+    res.status(200).json(result);
+  } catch (err) {
+    console.error('Error fetching personal test cases:', err);
+    res.status(400).json({ message: 'Error fetching personal test cases' });
+  }
+}
 
 
 //   // "I want the vital message at all time."
