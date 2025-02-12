@@ -20,73 +20,120 @@ import {
 import { UserRole } from '../types/enums';
 import { sendEmail } from '../utils/email'; // <-- import your email utility
 
-function isPopulatedUser(u: mongoose.Types.ObjectId | IUser): u is IUser {
-  return (u as IUser).email !== undefined;
+/**
+ * A simple type guard to check if the field is a populated IUser 
+ * rather than just an ObjectId. If .email exists, we consider it a user doc.
+ */
+function isPopulatedUser(
+  doc: mongoose.Types.ObjectId | IUser
+): doc is IUser {
+  return (doc as IUser).email !== undefined;
 }
 
-
-// -- A small helper to unify sending notifications. You can customize as needed.
-async function notifyTestCaseChange(
+/**
+ * Notify watchers of changes to a TestCase.
+ * Includes a styled HTML email with LogaXP header & contact info.
+ */
+export async function notifyTestCaseChange(
   testCaseId: string,
   action: string,
-  extraInfo?: string,
+  extraInfo?: string
 ) {
   try {
-    // 1) Fetch the testCase fully populated. We want .createdBy and .assignedTo
+    // 1) Fetch the TestCase with createdBy and assignedTo populated
     const testCase = await TestCase.findById(testCaseId)
       .populate('createdBy', 'name email')
       .populate('assignedTo', 'name email')
       .exec();
 
-    if (!testCase) return; // no testCase found, do nothing
+    if (!testCase) return; // If not found, just exit
 
-    // 2) Gather potential recipients: createdBy, assignedTo
+    // 2) Collect potential recipients in a Set (avoid duplicates)
     const recipients = new Set<string>();
 
-    // createdBy might be a user doc
     if (testCase.createdBy && isPopulatedUser(testCase.createdBy)) {
-      // Now TS knows it's an IUser with .email
       recipients.add(testCase.createdBy.email);
     }
     if (testCase.assignedTo && isPopulatedUser(testCase.assignedTo)) {
       recipients.add(testCase.assignedTo.email);
     }
-    
 
     if (recipients.size === 0) {
-      // no one to email
+      // No one to notify
       return;
     }
 
-    // 3) Build your subject & body
+    // 3) Build the subject
     const subject = `Test Case "${testCase.title}" (${testCase.testId}) ${action}`;
+
+    // 4) Build a plain-text body
     const textBody = `Hello,
-    
+
 The following test case has just been ${action}:
 
   Title: ${testCase.title}
   Application: ${testCase.application}
   Test ID: ${testCase.testId}
-  
+
 Additional info:
   ${extraInfo || 'No extra details'}
 
 Regards,
-Your QA System
+LogaXP QA System
+Enquire: +1 6155543592
 `;
 
-    const htmlBody = `<p>Hello,</p>
-<p>The following test case has just been <strong>${action}</strong>:</p>
-<ul>
-  <li><strong>Title:</strong> ${testCase.title}</li>
-  <li><strong>Application:</strong> ${testCase.application}</li>
-  <li><strong>Test ID:</strong> ${testCase.testId}</li>
-</ul>
-<p><em>Additional info:</em><br/>${extraInfo || 'No extra details'}</p>
-<p>Regards,<br/>Your QA System</p>`;
+    // 5) Build a more refined HTML body
+    //    We add some styling, a header with LogaXP name & contact, etc.
+    const htmlBody = `
+      <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
+        <!-- Header / Banner -->
+        <div style="
+          background-color: #333; 
+          color: #fff;
+          padding: 15px 20px;
+          border-radius: 5px;
+          text-align: center;
+        ">
+          <h1 style="margin: 0; font-size: 24px;">LogaXP</h1>
+          <p style="margin: 0; font-size: 14px;">Enquire: +1 6155543592</p>
+        </div>
 
-    // 4) Send the email (to all relevant recipients).
-    // You can pass an array, or comma-join them, depending on your mail config.
+        <!-- Main Content Panel -->
+        <div style="
+          background-color: #fff; 
+          margin-top: 20px; 
+          padding: 20px; 
+          border-radius: 5px; 
+          box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        ">
+          <h2 style="color: #333; margin-top: 0;">
+            Test Case "${testCase.title}" (${testCase.testId}) <em>${action}</em>
+          </h2>
+          
+          <ul style="list-style: none; padding-left: 0;">
+            <li><strong>Application:</strong> ${testCase.application}</li>
+            <li><strong>Title:</strong> ${testCase.title}</li>
+            <li><strong>Test ID:</strong> ${testCase.testId}</li>
+          </ul>
+          
+          <p style="margin-top: 1em;">
+            <strong>Additional Info:</strong><br/>
+            ${extraInfo || 'No extra details'}
+          </p>
+
+          <hr style="margin: 1em 0;" />
+
+          <p style="margin-bottom: 0;">
+            Regards,<br/>
+            <strong>LogaXP QA System</strong>
+          </p>
+        </div>
+      </div>
+    `;
+
+    // 6) Send the email to all relevant recipients
+    //    Convert recipients to a comma-separated string if needed
     await sendEmail({
       to: Array.from(recipients).join(','), 
       subject,
