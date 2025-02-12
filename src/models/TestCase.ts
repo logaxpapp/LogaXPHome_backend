@@ -2,6 +2,7 @@
 // src/models/TestCase.ts
 
 import mongoose, { Schema, Document, Model, CallbackError } from 'mongoose';
+import { IUser } from './User'; 
 
 /** 
  * The recognized "applications" for test cases. 
@@ -75,6 +76,7 @@ interface ITestCaseVersion {
 
 // The main TestCase interface
 export interface ITestCase extends Document {
+  _id: mongoose.Types.ObjectId; 
   testId: string;
   feature: string;
   title: string;
@@ -93,10 +95,10 @@ export interface ITestCase extends Document {
   attachments?: ITestAttachment[]; 
 
   /** The user assigned to this test (if any) */
-  assignedTo?: mongoose.Types.ObjectId;
+  assignedTo?: mongoose.Types.ObjectId | IUser;
 
   /** The user who originally created this test case */
-  createdBy: mongoose.Types.ObjectId;
+  createdBy: mongoose.Types.ObjectId | IUser;
 
   /** A record of test executions */
   executions: ITestExecution[];
